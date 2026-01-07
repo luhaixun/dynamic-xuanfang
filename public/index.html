@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>面积组合 TopK - Web UI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --accent: #22c55e;
+      --accent-2: #60a5fa;
+      --danger: #ef4444;
+      --card: #1f2937;
+      --input: #111827;
+      --border: #1f2937;
+    }
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      margin: 0; padding: 0;
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+    .title {
+      display: flex; align-items: baseline; gap: 12px;
+    }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin: 16px 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+    input, select {
+      width: 100%;
+      background: var(--input);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent-2); }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #fff;
+      background-image: radial-gradient(100% 100% at 100% 0, #4f46e5 0, #2563eb 100%);
+      cursor: pointer;
+      transition: transform .03s ease, box-shadow .15s ease;
+      font-weight: 600;
+    }
+    .btn.secondary {
+      background-image: radial-gradient(100% 100% at 100% 0, #22c55e 0, #16a34a 100%);
+      border-color: #14532d;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .results {
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: #0b1220;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      max-height: 420px;
+      overflow: auto;
+      font-size: 12px;
+    }
+    .error { color: var(--danger); }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 16px;
+      font-size: 12px; border: 1px solid var(--border); color: var(--muted);
+    }
+    .results table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .results thead th { font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
+    .results tbody td { border-bottom: 1px solid var(--border); padding: 8px; }
+    .results tbody tr:hover { background: rgba(96, 165, 250, 0.08); }
+    .results thead th.sortable { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title">
+      <h1>面积组合 TopK - Web UI</h1>
+      <span class="badge" id="cfg-badge">加载配置...</span>
+    </div>
+    <p class="muted">在下方填写参数，然后点击“计算”查看结果，或直接“导出 Excel”。</p>
+
+    <div class="card">
+      <form id="solve-form">
+        <div class="grid">
+          <div>
+            <label for="target">目标面积 target（必填）</label>
+            <input id="target" name="target" type="number" step="0.01" placeholder="示例：318.64" required />
+          </div>
+          <div>
+            <label for="topK">返回数量 topK</label>
+            <input id="topK" name="topK" type="number" step="1" min="1" placeholder="默认：10" />
+          </div>
+          <div>
+            <label for="source">来源 source</label>
+            <select id="source" name="source">
+              <option value="AB">AB（默认）</option>
+              <option value="A">仅 A</option>
+              <option value="B">仅 B</option>
+            </select>
+          </div>
+          <div>
+            <label for="minArea">最小面积 minArea</label>
+            <input id="minArea" name="minArea" type="number" step="0.01" placeholder="可留空" />
+          </div>
+          <div>
+            <label for="maxArea">最大面积 maxArea</label>
+            <input id="maxArea" name="maxArea" type="number" step="0.01" placeholder="可留空" />
+          </div>
+          <div>
+            <label for="fileAPath">A 数据路径</label>
+            <input id="fileAPath" name="fileAPath" type="text" placeholder="./data/qifang.txt" />
+          </div>
+          <div>
+            <label for="fileBPath">B 数据路径</label>
+            <input id="fileBPath" name="fileBPath" type="text" placeholder="./data/xianfang.txt" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:14px;">
+          <button type="submit" class="btn" id="btn-solve">计算</button>
+          <button type="button" class="btn secondary" id="btn-excel">导出 Excel</button>
+          <span id="msg" class="muted"></span>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content: space-between; align-items: center;">
+        <div class="muted">结果</div>
+        <div id="count" class="muted"></div>
+      </div>
+      <div class="row" style="gap:8px; margin:8px 0;">
+        <input id="filterText" type="text" placeholder="筛选关键词，如 A(期房)/B(现房)/C(现房)" style="flex:1;" />
+        <select id="filterMode" style="width:160px;">
+          <option value="include">包含匹配</option>
+          <option value="exclude">排除匹配</option>
+        </select>
+        <select id="structureFilter" style="width:200px;">
+          <option value="none">结构筛选：不限</option>
+          <option value="LMM">大+中+中</option>
+          <option value="MMMS">中+中+中+小</option>
+          <option value="MMSS">中+中+小+小</option>
+        </select>
+        <select id="qfCountFilter" style="width:160px;">
+          <option value="any">期房数量：不限</option>
+          <option value="0">期房数量：0</option>
+          <option value="1">期房数量：1</option>
+          <option value="2">期房数量：2</option>
+          <option value="3">期房数量：3</option>
+        </select>
+        <select id="xfCountFilter" style="width:160px;">
+          <option value="any">现房数量：不限</option>
+          <option value="0">现房数量：0</option>
+          <option value="1">现房数量：1</option>
+          <option value="2">现房数量：2</option>
+          <option value="3">现房数量：3</option>
+          <option value="4">现房数量：4</option>
+        </select>
+        <button type="button" class="btn" id="filterClear">清空筛选</button>
+      </div>
+      <div id="results" class="results">尚未计算</div>
+    </div>
+
+    <div class="card">
+      <div class="muted">说明</div>
+      <ul class="muted">
+        <li>类型标记：“(期房)” 表示来自 qifang.txt；“(现房)” 表示来自 xianfang.txt。</li>
+        <li>字段含义：“兑换面积”（组合总面积）、“目标面积”（输入目标）、“浪费面积”（目标面积 - 兑换面积）。</li>
+        <li>服务器默认端口：http://localhost:3000 。可在 server.js 中修改。</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    async function loadConfig() {
+      try {
+        const res = await fetch('/config');
+        if (!res.ok) throw new Error('配置加载失败');
+        const cfg = await res.json();
+        document.getElementById('topK').value = cfg.topK ?? 10;
+        document.getElementById('source').value = (cfg.source ?? 'AB').toUpperCase();
+        document.getElementById('minArea').value = (cfg.minArea ?? '');
+        document.getElementById('maxArea').value = (cfg.maxArea ?? '');
+        document.getElementById('fileAPath').value = cfg.fileAPath ?? './data/qifang.txt';
+        document.getElementById('fileBPath').value = cfg.fileBPath ?? './data/xianfang.txt';
+
+        const policy = cfg.policy || {};
+        const badge = document.getElementById('cfg-badge');
+        const polText = policy.disallowDominantWithSmallOthers
+          ? `策略启用：> ${policy.dominantMoreThan} 且其余 < ${policy.othersLessThan} 组合剔除`
+          : '策略关闭';
+        badge.textContent = `默认 topK=${cfg.topK ?? 10}，${polText}`;
+      } catch (e) {
+        document.getElementById('cfg-badge').textContent = '配置加载失败';
+      }
+    }
+
+    function buildQuery(params) {
+      const sp = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') sp.set(k, v);
+      });
+      return sp.toString();
+    }
+
+    function renderTable(data) {
+      if (!Array.isArray(data) || data.length === 0) {
+        return '<div class="muted">无结果</div>';
+      }
+      // 按浪费面积从小到大排序
+      data = [...data].sort((a, b) => {
+        const g1 = Number(a["浪费面积"]) || 0;
+        const g2 = Number(b["浪费面积"]) || 0;
+        return g1 - g2;
+      });
+      const rows = data.map((row, idx) => {
+        // 调整每行显示顺序：先期房（按面积降序），后现房（按面积降序）
+        const items = Array.isArray(row.result) ? row.result.filter(Boolean) : [];
+        const isQifang = (label) => typeof label === 'string' && label.includes('(期房)');
+        const qifang = items.filter(it => isQifang(it[1])).sort((a, b) => Number(b[0]) - Number(a[0]));
+        const xianfang = items.filter(it => !isQifang(it[1])).sort((a, b) => Number(b[0]) - Number(a[0]));
+        const ordered = [...qifang, ...xianfang];
+        const cells = Array(4).fill('').map((_, i) => {
+          const item = ordered[i];
+          return item ? `${item[0]} ${item[1]}` : '';
+        });
+        const exchange = row["兑换面积"];
+        const target = row["目标面积"];
+        const gap = row["浪费面积"];
+        return `<tr>
+          <td>${idx + 1}</td>
+          <td>${cells[0]}</td>
+          <td>${cells[1]}</td>
+          <td>${cells[2]}</td>
+          <td>${cells[3]}</td>
+          <td>${exchange}</td>
+          <td>${target}</td>
+          <td>${gap}</td>
+        </tr>`;
+      }).join('');
+      return `<table>
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="index">#</th>
+            <th>房1</th>
+            <th>房2</th>
+            <th>房3</th>
+            <th>房4</th>
+            <th class="sortable" data-sort="exchange">兑换面积</th>
+            <th class="sortable" data-sort="target">目标面积</th>
+            <th class="sortable" data-sort="gap">浪费面积</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    function sortTableBy(key, dir) {
+      const resultsEl = document.getElementById('results');
+      const table = resultsEl.querySelector('table');
+      if (!table) return;
+      const tbody = table.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const idxMap = { index: 0, exchange: 5, target: 6, gap: 7 };
+      const colIndex = idxMap[key];
+      if (colIndex === undefined) return;
+      rows.sort((r1, r2) => {
+        const t1 = r1.children[colIndex]?.textContent.trim() || '';
+        const t2 = r2.children[colIndex]?.textContent.trim() || '';
+        let v1, v2;
+        if (key === 'index') {
+          v1 = parseInt(t1, 10) || 0;
+          v2 = parseInt(t2, 10) || 0;
+        } else {
+          v1 = parseFloat(t1) || 0;
+          v2 = parseFloat(t2) || 0;
+        }
+        return dir === 'asc' ? (v1 - v2) : (v2 - v1);
+      });
+      rows.forEach(row => tbody.appendChild(row));
+    }
+
+    function applyFilter() {
+      const resultsEl = document.getElementById('results');
+      const table = resultsEl.querySelector('table');
+      const countEl = document.getElementById('count');
+      if (!table) {
+        countEl.textContent = '';
+        return;
+      }
+      const keyword = document.getElementById('filterText').value.trim();
+      const mode = document.getElementById('filterMode').value || 'include';
+      const struct = (document.getElementById('structureFilter')?.value) || 'none';
+      const qSel = (document.getElementById('qfCountFilter')?.value) || 'any';
+      const xSel = (document.getElementById('xfCountFilter')?.value) || 'any';
+
+      function categorizeArea(a) {
+        if (!Number.isFinite(a)) return '空';
+        if (a > 100) return '大';
+        if (a > 70 && a < 100) return '中';
+        if (a < 70) return '小';
+        return '边界';
+      }
+
+      function matchesStructurePattern(cats, patternKey) {
+        // 仅统计非空类别
+        const present = cats.filter(c => c !== '空');
+        const count = present.length;
+        const cnt = { '大': 0, '中': 0, '小': 0 };
+        present.forEach(c => { if (cnt[c] !== undefined) cnt[c]++; });
+
+        if (patternKey === 'LMM') {
+          // 大+中+中（恰好 3 项：1 大 2 中）
+          return count === 3 && cnt['大'] === 1 && cnt['中'] === 2 && cnt['小'] === 0;
+        }
+        if (patternKey === 'MMMS') {
+          // 中+中+中+小（恰好 4 项：3 中 1 小）
+          return count === 4 && cnt['中'] === 3 && cnt['小'] === 1 && cnt['大'] === 0;
+        }
+        if (patternKey === 'MMSS') {
+          // 中+中+小+小（恰好 4 项：2 中 2 小）
+          return count === 4 && cnt['中'] === 2 && cnt['小'] === 2 && cnt['大'] === 0;
+        }
+        return true; // 'none' 或未知键：不过滤
+      }
+
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
+      let visibleCount = 0;
+      rows.forEach(tr => {
+        // 文本筛选（房1~房4）
+        const text = [1, 2, 3, 4].map(i => tr.children[i]?.textContent || '').join(' ');
+        const has = keyword ? text.includes(keyword) : true;
+        const showKeyword = keyword ? (mode === 'include' ? has : !has) : true;
+
+        // 结构筛选：解析面积并分类
+        const nums = [1, 2, 3, 4].map(i => parseFloat(tr.children[i]?.textContent || '')).filter(n => Number.isFinite(n));
+        const cats = nums.map(categorizeArea);
+        const showStruct = struct === 'none' ? true : matchesStructurePattern(cats, struct);
+        // 统计当前行期房/现房数量
+        const counts = [1, 2, 3, 4].reduce((acc, i) => {
+          const t = tr.children[i]?.textContent || '';
+          if (t.includes('(期房)')) acc.q++;
+          else if (t.includes('(现房)')) acc.x++;
+          return acc;
+        }, { q: 0, x: 0 });
+        const showQ = qSel === 'any' ? true : counts.q === Number(qSel);
+        const showX = xSel === 'any' ? true : counts.x === Number(xSel);
+
+        const show = showKeyword && showStruct && showQ && showX;
+        tr.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+      });
+      countEl.textContent = '共 ' + visibleCount + ' 条结果';
+      sortTableBy('gap', 'asc');
+    }
+
+    function bindTableEnhancements() {
+      const resultsEl = document.getElementById('results');
+      const table = resultsEl.querySelector('table');
+      if (!table) return;
+      const headers = table.querySelectorAll('thead th[data-sort]');
+      headers.forEach(th => {
+        const key = th.getAttribute('data-sort');
+        th.addEventListener('click', () => {
+          if (window.__sortKey === key) {
+            window.__sortDir = window.__sortDir === 'asc' ? 'desc' : 'asc';
+          } else {
+            window.__sortKey = key;
+            window.__sortDir = key === 'index' ? 'asc' : 'desc';
+          }
+          sortTableBy(window.__sortKey, window.__sortDir);
+        });
+      });
+    }
+
+    async function onSubmit(e) {
+      e.preventDefault();
+      const msg = document.getElementById('msg');
+      const resultsEl = document.getElementById('results');
+      const countEl = document.getElementById('count');
+      msg.textContent = '';
+      countEl.textContent = '';
+
+      const target = document.getElementById('target').value;
+      const topK = document.getElementById('topK').value;
+      const source = document.getElementById('source').value;
+      const minArea = document.getElementById('minArea').value;
+      const maxArea = document.getElementById('maxArea').value;
+      const fileAPath = document.getElementById('fileAPath').value;
+      const fileBPath = document.getElementById('fileBPath').value;
+
+      const qs = buildQuery({
+        target, topK, source,
+        minArea, maxArea,
+        A: fileAPath,
+        B: fileBPath
+      });
+
+      try {
+        resultsEl.textContent = '计算中...';
+        const res = await fetch('/solve?' + qs);
+        const data = await res.json();
+        if (!res.ok) {
+          resultsEl.innerHTML = '<span class="error">' + (data.error || '请求失败') + '</span>';
+          return;
+        }
+        resultsEl.innerHTML = renderTable(data);
+        bindTableEnhancements();
+        window.__sortKey = 'gap';
+        window.__sortDir = 'asc';
+        sortTableBy('gap', 'asc');
+        applyFilter();
+      } catch (err) {
+        resultsEl.innerHTML = '<span class="error">' + err.message + '</span>';
+      }
+    }
+
+    function onExcel() {
+      const target = document.getElementById('target').value;
+      if (!target || Number(target) <= 0) {
+        document.getElementById('msg').textContent = '请先填写有效的 target';
+        return;
+      }
+      const topK = document.getElementById('topK').value;
+      const source = document.getElementById('source').value;
+      const minArea = document.getElementById('minArea').value;
+      const maxArea = document.getElementById('maxArea').value;
+      const fileAPath = document.getElementById('fileAPath').value;
+      const fileBPath = document.getElementById('fileBPath').value;
+
+      const qs = buildQuery({
+        target, topK, source, minArea, maxArea,
+        A: fileAPath, B: fileBPath
+      });
+      // 触发下载
+      window.location.href = '/excel?' + qs;
+    }
+
+    document.getElementById('solve-form').addEventListener('submit', onSubmit);
+    document.getElementById('btn-excel').addEventListener('click', onExcel);
+    // 过滤控件事件绑定
+    document.getElementById('filterText').addEventListener('input', applyFilter);
+    document.getElementById('filterMode').addEventListener('change', applyFilter);
+    document.getElementById('structureFilter').addEventListener('change', applyFilter);
+    document.getElementById('qfCountFilter')?.addEventListener('change', applyFilter);
+    document.getElementById('xfCountFilter')?.addEventListener('change', applyFilter);
+    document.getElementById('filterClear').addEventListener('click', () => {
+      const input = document.getElementById('filterText');
+      input.value = '';
+      const qSel = document.getElementById('qfCountFilter');
+      const xSel = document.getElementById('xfCountFilter');
+      if (qSel) qSel.value = 'any';
+      if (xSel) xSel.value = 'any';
+      applyFilter();
+    });
+    loadConfig();
+  </script>
+</body>
+</html>

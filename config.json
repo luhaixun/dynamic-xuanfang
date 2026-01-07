@@ -1,0 +1,14 @@
+{
+  "topK": 10,
+  "source": "AB",
+  "fileAPath": "./data/qifang.txt",
+  "fileBPath": "./data/xianfang.txt",
+  "excel": "./output.xlsx",
+  "minArea": 50,
+  "maxArea": 125.76,
+  "policy": {
+    "disallowDominantWithSmallOthers": true,
+    "dominantMoreThan": 100,
+    "othersLessThan": 70
+  }
+}
