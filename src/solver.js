@@ -8,9 +8,130 @@ const fs = require("fs");
 const { normalizeType } = require("./normalize");
 const { pickBestUnderOrEqual } = require("./bisect");
 const { pushTopK } = require("./topk");
-const { loadArrayFromTxt } = require("./io");
+const { qifangRows, xianfangRows, FILE_A_NAME, FILE_B_NAME } = require("./data");
 
+// 缓存 JSON 行，避免每次请求重复读取与解析
+const jsonRowCache = new Map();
+const REFRESH_JSON = Array.isArray(process.argv) && process.argv.includes("--refresh");
 /**
+ * 读取并缓存 JSON 行数据
+ * - 若未设置 --refresh，则优先返回缓存
+ * - 解析失败时返回空数组
+ */
+function readJsonRowsCached(filePath) {
+  try {
+    const abs = path.resolve(filePath);
+    if (!REFRESH_JSON && jsonRowCache.has(abs)) return jsonRowCache.get(abs);
+    const txt = fs.readFileSync(abs, "utf8");
+    const arr = JSON.parse(txt);
+    const rows = Array.isArray(arr) ? arr : [];
+    jsonRowCache.set(abs, rows);
+    return rows;
+  } catch {
+    return [];
+  }
+}
+  
+  // 配置缓存（solver 侧）：避免每次调用 solveTopK 都从磁盘读取 config.json
+  const CFG_PATH = path.resolve(__dirname, "../config.json");
+  let CFG_CACHE = {};
+  function reloadConfigCache() {
+    try {
+      const txt = fs.readFileSync(CFG_PATH, "utf8");
+      CFG_CACHE = JSON.parse(txt);
+    } catch {
+      CFG_CACHE = {};
+    }
+  }
+  reloadConfigCache();
+  try {
+    fs.watchFile(CFG_PATH, { interval: 1000 }, () => {
+      reloadConfigCache();
+      console.log("[LOG] solver: config.json reloaded");
+    });
+  } catch {}
+  function getConfig() {
+    return CFG_CACHE;
+  }
+  
+  // 数据派生缓存：缓存 toAreaTypeRows + 按类型分组并按面积排序的结果
+  const derivedCache = new Map();
+  /**
+   * 从原始行提取 {area, type}
+   */
+  function extractAreaTypeRows(rows, typeKey) {
+    const out = [];
+    for (const r of rows || []) {
+      const area = Number(r["建筑面积"]);
+      const type = normalizeType(r[typeKey]);
+      if (!Number.isFinite(area) || area <= 0) continue;
+      if (!type || !["A", "B", "C"].includes(type)) continue;
+      const buildingNo = r["幢号"] != null ? String(r["幢号"]).trim() : '';
+      const doorNo = r["门牌号"] != null ? String(r["门牌号"]).trim() : '';
+      const roomNo = r["室号"] != null ? String(r["室号"]).trim() : '';
+      out.push({ area, type, buildingNo, roomNo, doorNo });
+    }
+    return out;
+  }
+  function extractAreaTypeRowsWithCommunity(rows, typeKey, communityKey) {
+    const out = [];
+    for (const r of rows || []) {
+      const area = Number(r["建筑面积"]);
+      const type = normalizeType(r[typeKey]);
+      if (!Number.isFinite(area) || area <= 0) continue;
+      if (!type || !["A", "B", "C"].includes(type)) continue;
+      const community = communityKey ? (r[communityKey] != null ? String(r[communityKey]).trim() : '') : undefined;
+      const buildingNo = r["幢号"] != null ? String(r["幢号"]).trim() : '';
+      const doorNo = r["门牌号"] != null ? String(r["门牌号"]).trim() : '';
+      const roomNo = r["室号"] != null ? String(r["室号"]).trim() : '';
+      if (communityKey) out.push({ area, type, community, buildingNo, roomNo, doorNo });
+      else out.push({ area, type, buildingNo, roomNo, doorNo });
+    }
+    return out;
+  }
+  function groupAndSortByType(areaTypeRows) {
+    const byType = { A: [], B: [], C: [] };
+    for (const x of areaTypeRows) byType[x.type].push(x);
+    for (const t of ["A", "B", "C"]) byType[t].sort((p, q) => p.area - q.area);
+    return byType;
+  }
+  function getDerivedGroupedSorted(key, rows, typeKey) {
+    const k = String(key) + "::" + String(typeKey || "");
+    if (!REFRESH_JSON && derivedCache.has(k)) return derivedCache.get(k);
+    const areaTypeRows = extractAreaTypeRows(rows, typeKey);
+    const grouped = groupAndSortByType(areaTypeRows);
+    derivedCache.set(k, grouped);
+    return grouped;
+  }
+  // 二分辅助：在按面积升序数组上取 [min,max] 闭区间
+  function lowerBound(arr, min) {
+    if (min === undefined) return 0;
+    let l = 0, r = arr.length;
+    while (l < r) {
+      const m = (l + r) >> 1;
+      if (arr[m].area < min) l = m + 1;
+      else r = m;
+    }
+    return l;
+  }
+  function upperBound(arr, max) {
+    if (max === undefined) return arr.length;
+    let l = 0, r = arr.length;
+    while (l < r) {
+      const m = (l + r) >> 1;
+      if (arr[m].area <= max) l = m + 1;
+      else r = m;
+    }
+    return l; // 返回第一个 > max 的位置
+  }
+  function sliceRange(arr, min, max) {
+    const start = lowerBound(arr, min);
+    const end = upperBound(arr, max);
+    if (end <= start) return [];
+    return arr.slice(start, end);
+  }
+  
+  /**
  * 计算满足约束条件的 TopK 最优组合。
  * candidates: Array<[area, type, srcFileName]>
  * srcFileName: 通常为 "A.txt" 或 "B.txt"
@@ -33,17 +154,29 @@ function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, dis
   // 过滤 + 归一化 + 仅允许 A/B/C（排除 D）
   const items = [];
   for (const it of candidates) {
-    if (!Array.isArray(it) || it.length < 3) continue;
-
-    const area = Number(it[0]);
-    const type = normalizeType(it[1]);
-    const srcFile = it[2];
+    let area, type, srcFile, community, buildingNo, roomNo, doorNo;
+    if (Array.isArray(it)) {
+      if (it.length < 3) continue;
+      area = Number(it[0]);
+      type = normalizeType(it[1]);
+      srcFile = it[2];
+    } else if (it && typeof it === 'object') {
+      area = Number(it.area);
+      type = normalizeType(it.type);
+      srcFile = it.srcFile;
+      community = it.community;
+      buildingNo = it.buildingNo;
+      roomNo = it.roomNo;
+      doorNo = it.doorNo;
+    } else {
+      continue;
+    }
 
     if (!Number.isFinite(area) || area <= 0) continue;
     if (!type || !["A", "B", "C"].includes(type)) continue;
     if (srcFile !== fileAName && srcFile !== fileBName) continue;
 
-    items.push({ area, type, srcFile });
+    items.push({ area, type, srcFile, community, buildingNo, roomNo, doorNo });
   }
 
   // 按类型分组
@@ -53,6 +186,10 @@ function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, dis
   // 为后续二分查找按 area 升序排序
   for (const t of ["A", "B", "C"]) {
     byType[t].sort((p, q) => p.area - q.area);
+  }
+  // 任何单条面积超过 target 都不可能参与合法组合，提前剔除
+  for (const t of ["A", "B", "C"]) {
+    byType[t] = byType[t].filter((x) => x.area <= targetNum);
   }
 
   // 若任一类型缺失，则无解
@@ -86,11 +223,21 @@ function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, dis
     pushTopK(topList, seenKeys, { sum, picked }, topK);
   }
 
-  // 3 条：A + B + C
-  for (const a of byType.A) {
-    for (const b of byType.B) {
+  // 3 条：A + B + C（降序遍历 + 上界剪枝）
+  const maxCarea = byType.C.length ? byType.C[byType.C.length - 1].area : -Infinity;
+  for (let ia = byType.A.length - 1; ia >= 0; ia--) {
+    const a = byType.A[ia];
+    for (let ib = byType.B.length - 1; ib >= 0; ib--) {
+      const b = byType.B[ib];
       const partial = a.area + b.area;
+      // 降序遍历时，若超 target，继续尝试更小的 b（不能 break）
       if (partial > targetNum) continue;
+
+      // TopK 已满时，若即使加上 C 的最大值也无法超过当前最小入榜值，则直接结束该 b 循环
+      if (topList.length >= topK) {
+        const minKeep = topList[topList.length - 1].sum;
+        if (partial + maxCarea <= minKeep) break; // 后续更小的 b 只会更小，无法提升
+      }
 
       const c = pickBestUnderOrEqual(byType.C, targetNum - partial);
       if (c) tryCollect([a, b, c], partial + c.area);
@@ -103,14 +250,23 @@ function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, dis
   //  - B×2 + A + C
   //  - C×2 + A + B
   function enumFour(X, Y, Z) {
-    for (let i = 0; i < X.length; i++) {
-      for (let j = i + 1; j < X.length; j++) {
+    // 降序遍历 + 上界剪枝
+    const maxZarea = Z.length ? Z[Z.length - 1].area : -Infinity;
+    for (let i = X.length - 1; i >= 1; i--) {
+      for (let j = i - 1; j >= 0; j--) {
         const sumXX = X[i].area + X[j].area;
+        // 降序时若超 target，尝试更小的 j（继续）
         if (sumXX > targetNum) continue;
 
-        for (const y of Y) {
+        for (let iy = Y.length - 1; iy >= 0; iy--) {
+          const y = Y[iy];
           const partial = sumXX + y.area;
           if (partial > targetNum) continue;
+
+          if (topList.length >= topK) {
+            const minKeep = topList[topList.length - 1].sum;
+            if (partial + maxZarea <= minKeep) break; // 后续更小的 y 无法超过最小入榜
+          }
 
           const z = pickBestUnderOrEqual(Z, targetNum - partial);
           if (z) tryCollect([X[i], X[j], y, z], partial + z.area);
@@ -129,11 +285,20 @@ function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, dis
     return {
       result: picked.map((x) => {
         if (x.srcFile === fileBName) {
-          // 来自 xianfang.txt 的条目：去掉来源，并在类型后标注“(现房)”
-          return [x.area, `${x.type}(现房)`];
+          // 现房：显示小区名 + 幢号 + 门牌号 + 室号；若缺失则回退到 "(现房)"
+          const parts = [];
+          if (x.community) parts.push(String(x.community).trim());
+          if (x.buildingNo) parts.push(`${String(x.buildingNo).trim()}幢`);
+          if (x.doorNo) parts.push(`${String(x.doorNo).trim()}号`);
+          if (x.roomNo) parts.push(`${String(x.roomNo).trim()}室`);
+          const label = parts.length ? `(${parts.join(' ')})` : `${x.type}(现房)`;
+          return [x.area, label];
         }
-        // 来自 qifang.txt 的条目：去掉来源，并在类型后标注“(期房)”
-        return [x.area, `${x.type}(期房)`];
+        // 期房：保留“(期房)”用于前端统计，再追加门牌号/室号/幢号（若存在）
+        const extra = (x.buildingNo || x.doorNo || x.roomNo)
+          ? `${x.buildingNo ? ' ' + String(x.buildingNo).trim() + '幢' : ''}${x.doorNo ? ' ' + String(x.doorNo).trim() + '号' : ''}${x.roomNo ? ' ' + String(x.roomNo).trim() + '室' : ''}`
+          : '';
+        return [x.area, `${x.type}(期房)` + extra];
       }),
       "兑换面积": sumFixed,
       "目标面积": targetNum,
@@ -158,21 +323,16 @@ function solveTopK(
     fileBPath,
     minArea,
     maxArea,
+    xfCommunities,
   } = {}
 ) {
   // 读取配置文件，优先使用传入参数；未传入时使用配置文件默认值
-  const cfgPath = path.resolve(__dirname, "../config.json");
-  let cfg = {};
-  try {
-    cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
-  } catch {
-    cfg = {};
-  }
+  const cfg = getConfig();
 
   const finalTopK = Number(topK ?? cfg.topK ?? 10);
-  const finalFileAPath = fileAPath ?? cfg.fileAPath ?? "./data/qifang.txt";
-  const finalFileBPath = fileBPath ?? cfg.fileBPath ?? "./data/xianfang.txt";
   const finalSource = String(source ?? cfg.source ?? "AB").toUpperCase();
+  const finalFileAPath = (fileAPath ?? cfg.fileAPath);
+  const finalFileBPath = (fileBPath ?? cfg.fileBPath);
 
   // 归一化面积阈值：仅当为有限数值时才启用过滤
   const rawMin = (minArea ?? cfg.minArea);
@@ -181,6 +341,9 @@ function solveTopK(
   const nMax = Number(rawMax);
   const finalMinArea = (rawMin === undefined || rawMin === null || !Number.isFinite(nMin)) ? undefined : nMin;
   const finalMaxArea = (rawMax === undefined || rawMax === null || !Number.isFinite(nMax)) ? undefined : nMax;
+  const targetNum = Number(target);
+  console.log(`[LOG] 开始查找解决方案，面积：${targetNum}`);
+  const __t0 = process.hrtime.bigint();
 
   // 组合规则配置（优先从 cfg.policy 读取，兼容旧版顶层键）
   const policy = cfg.policy || {};
@@ -188,30 +351,102 @@ function solveTopK(
   const dominantMoreThan = Number(policy.dominantMoreThan ?? cfg.dominantMoreThan);
   const othersLessThan = Number(policy.othersLessThan ?? cfg.othersLessThan);
 
-  const fileAName = path.basename(finalFileAPath);
-  const fileBName = path.basename(finalFileBPath);
+  const fileAName = FILE_A_NAME;
+  const fileBName = FILE_B_NAME;
 
-  const Araw = loadArrayFromTxt(finalFileAPath, ["qifang", "A", "a", "data", "list"]);
-  const Braw = loadArrayFromTxt(finalFileBPath, ["xianfang", "B", "b", "data", "list"]);
-
-  // 在附加来源前先按面积阈值进行过滤：
-  // - 若 finalMinArea 定义，则剔除 area < finalMinArea
-  // - 若 finalMaxArea 定义，则剔除 area > finalMaxArea
-  function applyAreaFilter(arr) {
-    return arr.filter(([area]) => {
-      const a = Number(area);
-      if (!Number.isFinite(a)) return false;
-      if (finalMinArea !== undefined && a < finalMinArea) return false;
-      if (finalMaxArea !== undefined && a > finalMaxArea) return false;
-      return true;
-    });
+  // 从 Excel 行构造成 [area, type] 列表（保留所有列于内存 data.js）
+  function toAreaTypeRows(rows, typeKey) {
+    const out = [];
+    for (const r of rows) {
+      const area = Number(r["建筑面积"]);
+      const type = normalizeType(r[typeKey]);
+      if (!Number.isFinite(area) || area <= 0) continue;
+      if (!type || !["A", "B", "C"].includes(type)) continue;
+      out.push({ area, type, row: r });
+    }
+    return out;
   }
-  const Aflt = applyAreaFilter(Araw);
-  const Bflt = applyAreaFilter(Braw);
+  // 根据配置/参数，优先从 JSON 缓存加载；否则回退到内存中的 Excel 行
+  function detectTypeKey(rows) {
+    const first = rows && rows[0] || {};
+    if ("类别" in first) return "类别";
+    if ("类型" in first) return "类型";
+    return "类别";
+  }
+  const useJsonA = typeof finalFileAPath === "string" && finalFileAPath.toLowerCase().endsWith(".json") && fs.existsSync(path.resolve(finalFileAPath));
+  const useJsonB = typeof finalFileBPath === "string" && finalFileBPath.toLowerCase().endsWith(".json") && fs.existsSync(path.resolve(finalFileBPath));
 
-  // 为每条记录附加来源文件名
-  const A = Aflt.map(([area, type]) => [area, type, fileAName]);
-  const B = Bflt.map(([area, type]) => [area, type, fileBName]);
+  const srcArows = useJsonA ? readJsonRowsCached(finalFileAPath) : qifangRows;
+  const srcBrows = useJsonB ? readJsonRowsCached(finalFileBPath) : xianfangRows;
+
+  const keyA = useJsonA ? path.resolve(finalFileAPath) : "__EXCEL_QIFANG__";
+  const keyB = useJsonB ? path.resolve(finalFileBPath) : "__EXCEL_XIANFANG__";
+  const typeKeyA = useJsonA ? detectTypeKey(srcArows) : "类别";
+  const typeKeyB = useJsonB ? detectTypeKey(srcBrows) : "类型";
+  
+  // 使用派生缓存：按类型分组并按面积排序（对现房可按小区过滤）
+  const Agroup = getDerivedGroupedSorted(keyA, srcArows, typeKeyA);
+
+  // 若传入现房小区过滤，则仅保留选中的小区；否则使用缓存分组
+  function detectCommunityKeyForB(rows) {
+    const first = (rows && rows[0]) || {};
+    const keys = Object.keys(first);
+    const preferred = ["小区名称", "小区", "小区名", "项目名称", "楼盘名称"];
+    for (const k of preferred) {
+      if (keys.includes(k)) return k;
+    }
+    const fuzzy = keys.find((k) => /小区|项目|楼盘/.test(String(k)));
+    return fuzzy;
+  }
+  const xfSel = Array.isArray(xfCommunities)
+    ? xfCommunities.filter(Boolean).map((s) => String(s).trim()).filter(Boolean)
+    : [];
+  let Bgroup;
+  if (xfSel.length > 0) {
+    const ck = detectCommunityKeyForB(srcBrows);
+    if (ck) {
+      const set = new Set(xfSel);
+      const filteredBRows = srcBrows.filter((r) => {
+        const v = r[ck];
+        if (v === null || v === undefined) return false;
+        const name = String(v).trim();
+        return name && set.has(name);
+      });
+      const areaType = extractAreaTypeRowsWithCommunity(filteredBRows, typeKeyB, ck);
+      Bgroup = groupAndSortByType(areaType);
+    } else {
+      // 无法检测到小区列名时，不进行过滤，避免误杀
+      Bgroup = getDerivedGroupedSorted(keyB, srcBrows, typeKeyB);
+    }
+  } else {
+    const ck = detectCommunityKeyForB(srcBrows);
+    if (ck) {
+      const areaType = extractAreaTypeRowsWithCommunity(srcBrows, typeKeyB, ck);
+      Bgroup = groupAndSortByType(areaType);
+    } else {
+      Bgroup = getDerivedGroupedSorted(keyB, srcBrows, typeKeyB);
+    }
+  }
+  
+  // 计算筛选区间 [min, max]，并考虑目标面积上限
+  const upperA = Number.isFinite(targetNum)
+    ? (finalMaxArea !== undefined ? Math.min(targetNum, finalMaxArea) : targetNum)
+    : finalMaxArea;
+  const upperB = upperA; // 相同规则
+  
+  const lower = finalMinArea;
+  
+  // 基于二分的快速切片
+  const AfltA = sliceRange(Agroup.A, lower, upperA);
+  const AfltB = sliceRange(Agroup.B, lower, upperA);
+  const AfltC = sliceRange(Agroup.C, lower, upperA);
+  const BfltA = sliceRange(Bgroup.A, lower, upperB);
+  const BfltB = sliceRange(Bgroup.B, lower, upperB);
+  const BfltC = sliceRange(Bgroup.C, lower, upperB);
+  
+  // 合并类型并附加来源
+  const A = [...AfltA, ...AfltB, ...AfltC].map(({ area, type, buildingNo, roomNo, doorNo }) => ({ area, type, srcFile: fileAName, buildingNo, roomNo, doorNo }));
+  const B = [...BfltA, ...BfltB, ...BfltC].map(({ area, type, community, buildingNo, roomNo, doorNo }) => ({ area, type, srcFile: fileBName, community, buildingNo, roomNo, doorNo }));
 
   // 依据 source 选择候选
   let candidates;
@@ -220,7 +455,13 @@ function solveTopK(
   else if (src === "B") candidates = B;
   else candidates = [...A, ...B];
 
-  return bestTopKCombos(candidates, Number(target), fileAName, fileBName, finalTopK, disallowDominant, dominantMoreThan, othersLessThan);
+  const __res = bestTopKCombos(candidates, Number(target), fileAName, fileBName, finalTopK, disallowDominant, dominantMoreThan, othersLessThan);
+  const __t1 = process.hrtime.bigint();
+  const __ms = Number(__t1 - __t0) / 1e6;
+  console.log(
+    `[METRIC] solveTopK spent ${__ms.toFixed(2)} ms target=${targetNum} topK=${finalTopK} source=${finalSource} candA=${A.length} candB=${B.length} results=${__res.length}`
+  );
+  return __res;
 }
 
 module.exports = {

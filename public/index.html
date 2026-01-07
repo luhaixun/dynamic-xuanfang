@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8" />
-  <title>面积组合 TopK - Web UI</title>
+  <title>选房程序（内部版）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -17,22 +18,38 @@
       --input: #111827;
       --border: #1f2937;
     }
-    html, body {
+
+    html,
+    body {
       background: var(--bg);
       color: var(--text);
-      margin: 0; padding: 0;
+      margin: 0;
+      padding: 0;
       font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
     }
+
     .container {
       max-width: 1100px;
       margin: 24px auto;
       padding: 0 16px;
     }
+
     .title {
-      display: flex; align-items: baseline; gap: 12px;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
     }
-    h1 { margin: 0 0 8px; font-size: 22px; }
-    .muted { color: var(--muted); font-size: 13px; }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
     .card {
       background: var(--card);
       border: 1px solid var(--border);
@@ -40,16 +57,28 @@
       padding: 16px;
       margin: 16px 0;
     }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
     }
+
     @media (max-width: 900px) {
-      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
-    label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
-    input, select {
+
+    label {
+      font-size: 12px;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    input,
+    select {
       width: 100%;
       background: var(--input);
       color: var(--text);
@@ -58,8 +87,18 @@
       padding: 10px 12px;
       outline: none;
     }
-    input:focus, select:focus { border-color: var(--accent-2); }
-    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    input:focus,
+    select:focus {
+      border-color: var(--accent-2);
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
     .btn {
       appearance: none;
       border: 1px solid var(--border);
@@ -71,12 +110,21 @@
       transition: transform .03s ease, box-shadow .15s ease;
       font-weight: 600;
     }
+
     .btn.secondary {
       background-image: radial-gradient(100% 100% at 100% 0, #22c55e 0, #16a34a 100%);
       border-color: #14532d;
     }
-    .btn:active { transform: translateY(1px); }
-    .btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
     .results {
       white-space: pre-wrap;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -88,25 +136,111 @@
       overflow: auto;
       font-size: 12px;
     }
-    .error { color: var(--danger); }
-    .badge {
-      display: inline-block; padding: 2px 8px; border-radius: 16px;
-      font-size: 12px; border: 1px solid var(--border); color: var(--muted);
+
+    .error {
+      color: var(--danger);
     }
-    .results table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .results thead th { font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
-    .results tbody td { border-bottom: 1px solid var(--border); padding: 8px; }
-    .results tbody tr:hover { background: rgba(96, 165, 250, 0.08); }
-    .results thead th.sortable { cursor: pointer; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 16px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .results table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .results thead th {
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      padding: 8px;
+      text-align: left;
+    }
+
+    .results tbody td {
+      border-bottom: 1px solid var(--border);
+      padding: 8px;
+    }
+
+    .results tbody tr:hover {
+      background: rgba(96, 165, 250, 0.08);
+    }
+
+    .results thead th.sortable {
+      cursor: pointer;
+    }
+
+    /* Dropdown with checkbox list */
+    .dropdown {
+      position: relative;
+    }
+
+    .dropdown-btn {
+      width: 100%;
+      background: var(--input);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .dropdown-btn:focus {
+      border-color: var(--accent-2);
+      outline: none;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 6px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      z-index: 1000;
+      max-height: 300px;
+      overflow: auto;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .dropdown-menu .xf-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-bottom: 8px;
+    }
+
+    .xf-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 2px;
+    }
+
+    .xf-option input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+    }
   </style>
 </head>
+
 <body>
   <div class="container">
     <div class="title">
-      <h1>面积组合 TopK - Web UI</h1>
+      <h1>上海市闵行区梅陇镇城中村 选房程序（内部版）</h1>
       <span class="badge" id="cfg-badge">加载配置...</span>
     </div>
-    <p class="muted">在下方填写参数，然后点击“计算”查看结果，或直接“导出 Excel”。</p>
+    <p class="muted">在下方填写参数，然后点击“计算”查看结果。可在结果表右上角导出 Excel。</p>
 
     <div class="card">
       <form id="solve-form">
@@ -135,71 +269,89 @@
             <label for="maxArea">最大面积 maxArea</label>
             <input id="maxArea" name="maxArea" type="number" step="0.01" placeholder="可留空" />
           </div>
-          <div>
-            <label for="fileAPath">A 数据路径</label>
-            <input id="fileAPath" name="fileAPath" type="text" placeholder="./data/qifang.txt" />
+          <div class="grid">
+            <div style="grid-column: span 4;">
+              <label>现房小区（多选，留空=全部现房）</label>
+              <div class="dropdown" id="xfDropdown">
+                <button type="button" class="dropdown-btn" id="xfDropdownBtn">全部现房</button>
+                <div class="dropdown-menu" id="xfDropdownMenu" style="display:none;">
+                  <div class="xf-actions">
+                    <button type="button" class="btn" id="xfSelectAll">全选</button>
+                    <button type="button" class="btn secondary" id="xfClearAll">清空</button>
+                  </div>
+                  <div id="xfOptions"></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div>
-            <label for="fileBPath">B 数据路径</label>
-            <input id="fileBPath" name="fileBPath" type="text" placeholder="./data/xianfang.txt" />
-          </div>
-        </div>
 
-        <div class="row" style="margin-top:14px;">
-          <button type="submit" class="btn" id="btn-solve">计算</button>
-          <button type="button" class="btn secondary" id="btn-excel">导出 Excel</button>
-          <span id="msg" class="muted"></span>
-        </div>
+          <div class="row" style="margin-top:14px;">
+            <button type="submit" class="btn" id="btn-solve">计算</button>
+            <span id="msg" class="muted"></span>
+          </div>
       </form>
-    </div>
-
-    <div class="card">
-      <div class="row" style="justify-content: space-between; align-items: center;">
-        <div class="muted">结果</div>
-        <div id="count" class="muted"></div>
-      </div>
-      <div class="row" style="gap:8px; margin:8px 0;">
-        <input id="filterText" type="text" placeholder="筛选关键词，如 A(期房)/B(现房)/C(现房)" style="flex:1;" />
-        <select id="filterMode" style="width:160px;">
-          <option value="include">包含匹配</option>
-          <option value="exclude">排除匹配</option>
-        </select>
-        <select id="structureFilter" style="width:200px;">
-          <option value="none">结构筛选：不限</option>
-          <option value="LMM">大+中+中</option>
-          <option value="MMMS">中+中+中+小</option>
-          <option value="MMSS">中+中+小+小</option>
-        </select>
-        <select id="qfCountFilter" style="width:160px;">
-          <option value="any">期房数量：不限</option>
-          <option value="0">期房数量：0</option>
-          <option value="1">期房数量：1</option>
-          <option value="2">期房数量：2</option>
-          <option value="3">期房数量：3</option>
-        </select>
-        <select id="xfCountFilter" style="width:160px;">
-          <option value="any">现房数量：不限</option>
-          <option value="0">现房数量：0</option>
-          <option value="1">现房数量：1</option>
-          <option value="2">现房数量：2</option>
-          <option value="3">现房数量：3</option>
-          <option value="4">现房数量：4</option>
-        </select>
-        <button type="button" class="btn" id="filterClear">清空筛选</button>
-      </div>
-      <div id="results" class="results">尚未计算</div>
-    </div>
-
-    <div class="card">
-      <div class="muted">说明</div>
-      <ul class="muted">
-        <li>类型标记：“(期房)” 表示来自 qifang.txt；“(现房)” 表示来自 xianfang.txt。</li>
-        <li>字段含义：“兑换面积”（组合总面积）、“目标面积”（输入目标）、“浪费面积”（目标面积 - 兑换面积）。</li>
-        <li>服务器默认端口：http://localhost:3000 。可在 server.js 中修改。</li>
-      </ul>
     </div>
   </div>
 
+  <div class="card">
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <div class="muted">结果</div>
+      <div class="row" style="gap:8px; align-items: center;">
+        <div id="count" class="muted"></div>
+        <button type="button" class="btn secondary" id="btn-export-table" disabled>导出表格到 Excel</button>
+      </div>
+    </div>
+    <div class="row" style="gap:8px; margin:8px 0;">
+      <input id="filterText" type="text" placeholder="筛选关键词，如 A(期房)/银香苑/景香苑" style="flex:1;" />
+      <select id="filterMode" style="width:160px;">
+        <option value="include">包含匹配</option>
+        <option value="exclude">排除匹配</option>
+      </select>
+      <select id="structureFilter" style="width:200px;">
+        <option value="none">结构筛选：不限</option>
+        <option value="LMM">大+中+中</option>
+        <option value="MMMS">中+中+中+小</option>
+        <option value="MMSS">中+中+小+小</option>
+      </select>
+      <select id="qfCountFilter" style="width:160px;">
+        <option value="any">期房数量：不限</option>
+        <option value="0">期房数量：0</option>
+        <option value="1">期房数量：1</option>
+        <option value="2">期房数量：2</option>
+        <option value="3">期房数量：3</option>
+      </select>
+      <select id="xfCountFilter" style="width:160px;">
+        <option value="any">现房数量：不限</option>
+        <option value="0">现房数量：0</option>
+        <option value="1">现房数量：1</option>
+        <option value="2">现房数量：2</option>
+        <option value="3">现房数量：3</option>
+        <option value="4">现房数量：4</option>
+      </select>
+      <button type="button" class="btn" id="filterClear">清空筛选</button>
+    </div>
+    <div id="results" class="results">尚未计算</div>
+  </div>
+
+  <div class="card">
+    <div class="muted">说明</div>
+    <ul class="muted">
+      <li>类型标记：期房显示 A/B/C + “(期房)”并追加 幢号/门牌号/室号（若有），如“A(期房) 1幢 29号 101室”；现房显示为对应小区名称+幢号+门牌号+室号，如“(银香苑 1幢 29号 101室)”。</li>
+      <li>字段含义：“兑换面积”（组合总面积）、“目标面积”（输入目标）、“浪费面积”（目标面积 - 兑换面积）。</li>
+      <li>服务器默认端口：http://localhost:3000 。可在 server.js 中修改。</li>
+    </ul>
+  </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="var s=document.createElement('script'); s.src='/vendor/xlsx.full.min.js'; document.head.appendChild(s);"></script>
+  <script>
+    // Runtime check: if CDN load was blocked and onerror didn’t fire, load local fallback
+    if (typeof XLSX === 'undefined') {
+      var s = document.createElement('script');
+      s.src = '/vendor/xlsx.full.min.js';
+      document.head.appendChild(s);
+    }
+  </script>
   <script>
     async function loadConfig() {
       try {
@@ -210,8 +362,6 @@
         document.getElementById('source').value = (cfg.source ?? 'AB').toUpperCase();
         document.getElementById('minArea').value = (cfg.minArea ?? '');
         document.getElementById('maxArea').value = (cfg.maxArea ?? '');
-        document.getElementById('fileAPath').value = cfg.fileAPath ?? './data/qifang.txt';
-        document.getElementById('fileBPath').value = cfg.fileBPath ?? './data/xianfang.txt';
 
         const policy = cfg.policy || {};
         const badge = document.getElementById('cfg-badge');
@@ -227,28 +377,86 @@
     function buildQuery(params) {
       const sp = new URLSearchParams();
       Object.entries(params).forEach(([k, v]) => {
-        if (v !== undefined && v !== null && v !== '') sp.set(k, v);
+        if (v === undefined || v === null || v === '') return;
+        if (Array.isArray(v)) {
+          v.forEach((item) => {
+            if (item !== undefined && item !== null && item !== '') sp.append(k, item);
+          });
+        } else {
+          sp.set(k, v);
+        }
       });
       return sp.toString();
+    }
+
+    // 现房小区多选下拉逻辑
+    function getXfSelected() {
+      const boxes = Array.from(document.querySelectorAll('#xfOptions input[type="checkbox"]:checked'));
+      return boxes.map(b => b.value);
+    }
+    function setAllXfSelected(flag) {
+      const boxes = Array.from(document.querySelectorAll('#xfOptions input[type="checkbox"]'));
+      boxes.forEach(b => { b.checked = !!flag; });
+      updateXfBtnLabel();
+    }
+    function updateXfBtnLabel() {
+      const btn = document.getElementById('xfDropdownBtn');
+      if (!btn) return;
+      const sel = getXfSelected();
+      if (sel.length === 0) {
+        btn.textContent = '全部现房';
+      } else if (sel.length <= 2) {
+        btn.textContent = sel.join('、');
+      } else {
+        btn.textContent = `已选 ${sel.length} 个小区`;
+      }
+    }
+    function setupXfDropdown() {
+      const btn = document.getElementById('xfDropdownBtn');
+      const menu = document.getElementById('xfDropdownMenu');
+      const selectAll = document.getElementById('xfSelectAll');
+      const clearAll = document.getElementById('xfClearAll');
+      if (!btn || !menu) return;
+
+      btn.addEventListener('click', () => {
+        menu.style.display = menu.style.display === 'none' ? '' : 'none';
+      });
+      document.addEventListener('click', (e) => {
+        const dd = document.getElementById('xfDropdown');
+        if (!dd) return;
+        if (!dd.contains(e.target)) {
+          menu.style.display = 'none';
+        }
+      });
+      selectAll?.addEventListener('click', () => setAllXfSelected(true));
+      clearAll?.addEventListener('click', () => setAllXfSelected(false));
+      // 监听选项变化更新按钮文案
+      document.getElementById('xfOptions')?.addEventListener('change', (e) => {
+        if (e.target && e.target.matches('input[type="checkbox"]')) {
+          updateXfBtnLabel();
+        }
+      });
     }
 
     function renderTable(data) {
       if (!Array.isArray(data) || data.length === 0) {
         return '<div class="muted">无结果</div>';
       }
-      // 按浪费面积从小到大排序
+      // 纵向：按每套组合的“最大单套面积”从大到小排序
+      function rowMax(row) {
+        const items = Array.isArray(row.result) ? row.result.filter(Boolean) : [];
+        if (items.length === 0) return -Infinity;
+        return Math.max(...items.map(it => Number(it[0]) || 0));
+      }
       data = [...data].sort((a, b) => {
-        const g1 = Number(a["浪费面积"]) || 0;
-        const g2 = Number(b["浪费面积"]) || 0;
-        return g1 - g2;
+        const maxA = rowMax(a);
+        const maxB = rowMax(b);
+        return maxB - maxA;
       });
       const rows = data.map((row, idx) => {
-        // 调整每行显示顺序：先期房（按面积降序），后现房（按面积降序）
+        // 每行横向按面积从大到小，无论期房/现房
         const items = Array.isArray(row.result) ? row.result.filter(Boolean) : [];
-        const isQifang = (label) => typeof label === 'string' && label.includes('(期房)');
-        const qifang = items.filter(it => isQifang(it[1])).sort((a, b) => Number(b[0]) - Number(a[0]));
-        const xianfang = items.filter(it => !isQifang(it[1])).sort((a, b) => Number(b[0]) - Number(a[0]));
-        const ordered = [...qifang, ...xianfang];
+        const ordered = items.slice().sort((a, b) => Number(b[0]) - Number(a[0]));
         const cells = Array(4).fill('').map((_, i) => {
           const item = ordered[i];
           return item ? `${item[0]} ${item[1]}` : '';
@@ -368,8 +576,12 @@
         // 统计当前行期房/现房数量
         const counts = [1, 2, 3, 4].reduce((acc, i) => {
           const t = tr.children[i]?.textContent || '';
-          if (t.includes('(期房)')) acc.q++;
-          else if (t.includes('(现房)')) acc.x++;
+          if (t.includes('(期房)')) {
+            acc.q++;
+          } else if (/\([^)]+\)/.test(t)) {
+            // 现房标签现在显示为小区名称括号，如 "(银香苑)"
+            acc.x++;
+          }
           return acc;
         }, { q: 0, x: 0 });
         const showQ = qSel === 'any' ? true : counts.q === Number(qSel);
@@ -380,7 +592,6 @@
         if (show) visibleCount++;
       });
       countEl.textContent = '共 ' + visibleCount + ' 条结果';
-      sortTableBy('gap', 'asc');
     }
 
     function bindTableEnhancements() {
@@ -415,14 +626,12 @@
       const source = document.getElementById('source').value;
       const minArea = document.getElementById('minArea').value;
       const maxArea = document.getElementById('maxArea').value;
-      const fileAPath = document.getElementById('fileAPath').value;
-      const fileBPath = document.getElementById('fileBPath').value;
+      const xfSel = getXfSelected();
 
       const qs = buildQuery({
         target, topK, source,
         minArea, maxArea,
-        A: fileAPath,
-        B: fileBPath
+        xfCommunities: xfSel
       });
 
       try {
@@ -435,38 +644,70 @@
         }
         resultsEl.innerHTML = renderTable(data);
         bindTableEnhancements();
-        window.__sortKey = 'gap';
-        window.__sortDir = 'asc';
-        sortTableBy('gap', 'asc');
         applyFilter();
+        updateExportButtonState();
       } catch (err) {
         resultsEl.innerHTML = '<span class="error">' + err.message + '</span>';
       }
     }
 
-    function onExcel() {
-      const target = document.getElementById('target').value;
-      if (!target || Number(target) <= 0) {
-        document.getElementById('msg').textContent = '请先填写有效的 target';
+    function updateExportButtonState() {
+      const btn = document.getElementById('btn-export-table');
+      if (!btn) return;
+      const table = document.getElementById('results').querySelector('table');
+      btn.disabled = !table;
+    }
+
+    function exportFilteredTableToExcel() {
+      const resultsEl = document.getElementById('results');
+      const table = resultsEl.querySelector('table');
+      const msg = document.getElementById('msg');
+      if (!table) {
+        if (msg) msg.textContent = '无表格可导出，请先计算';
         return;
       }
-      const topK = document.getElementById('topK').value;
-      const source = document.getElementById('source').value;
-      const minArea = document.getElementById('minArea').value;
-      const maxArea = document.getElementById('maxArea').value;
-      const fileAPath = document.getElementById('fileAPath').value;
-      const fileBPath = document.getElementById('fileBPath').value;
-
-      const qs = buildQuery({
-        target, topK, source, minArea, maxArea,
-        A: fileAPath, B: fileBPath
+      // 若前端 XLSX 库未加载（可能被网络限制），回退到服务端导出
+      if (typeof XLSX === 'undefined') {
+        if (msg) msg.textContent = '前端 XLSX 库未加载，正在使用服务端导出…';
+        // 从表单取当前参数，构建服务端导出请求
+        const target = document.getElementById('target').value;
+        const topK = document.getElementById('topK').value;
+        const source = document.getElementById('source').value;
+        const minArea = document.getElementById('minArea').value;
+        const maxArea = document.getElementById('maxArea').value;
+        const xfSel = getXfSelected();
+        const qs = buildQuery({
+          target, topK, source,
+          minArea, maxArea,
+          xfCommunities: xfSel
+        });
+        // 跳转到服务端 /excel 下载
+        window.location.href = '/excel?' + qs;
+        return;
+      }
+      // 采集表头
+      const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+      // 采集可见行数据
+      const rows = [];
+      const trs = Array.from(table.querySelectorAll('tbody tr'));
+      trs.forEach(tr => {
+        if (tr.style.display === 'none') return;
+        const row = Array.from(tr.children).map(td => (td.textContent || '').trim());
+        rows.push(row);
       });
-      // 触发下载
-      window.location.href = '/excel?' + qs;
+      if (rows.length === 0) {
+        if (msg) msg.textContent = '当前筛选无可导出的行';
+        return;
+      }
+      const aoa = [headers, ...rows];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '筛选结果');
+      XLSX.writeFile(wb, 'table-results.xlsx');
     }
 
     document.getElementById('solve-form').addEventListener('submit', onSubmit);
-    document.getElementById('btn-excel').addEventListener('click', onExcel);
+    document.getElementById('btn-export-table').addEventListener('click', exportFilteredTableToExcel);
     // 过滤控件事件绑定
     document.getElementById('filterText').addEventListener('input', applyFilter);
     document.getElementById('filterMode').addEventListener('change', applyFilter);
@@ -483,6 +724,37 @@
       applyFilter();
     });
     loadConfig();
+    (async function loadCommunities() {
+      try {
+        const res = await fetch('/communities?type=xf');
+        if (!res.ok) throw new Error('小区列表加载失败');
+        const list = await res.json();
+        const cont = document.getElementById('xfOptions');
+        if (cont && Array.isArray(list)) {
+          cont.innerHTML = '';
+          list.forEach((name, idx) => {
+            const id = 'xfopt_' + idx;
+            const row = document.createElement('div');
+            row.className = 'xf-option';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.id = id;
+            cb.value = name;
+            const lab = document.createElement('label');
+            lab.setAttribute('for', id);
+            lab.textContent = name;
+            row.appendChild(cb);
+            row.appendChild(lab);
+            cont.appendChild(row);
+          });
+          setupXfDropdown();
+          updateXfBtnLabel();
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
   </script>
 </body>
+
 </html>

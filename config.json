@@ -1,8 +1,8 @@
 {
-  "topK": 10,
+  "topK": 999,
   "source": "AB",
-  "fileAPath": "./data/qifang.txt",
-  "fileBPath": "./data/xianfang.txt",
+  "fileAPath": "./data/期房-汇总.json",
+  "fileBPath": "./data/现房-汇总.json",
   "excel": "./output.xlsx",
   "minArea": 50,
   "maxArea": 125.76,

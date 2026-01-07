@@ -38,7 +38,7 @@ function run(argv = process.argv) {
 
   const target = Number(args.target ?? args.t);
   if (!Number.isFinite(target) || target <= 0) {
-    console.error("用法：node index.js --target 318.64 --topK 10 --A ./data/qifang.txt --B ./data/xianfang.txt [--source AB]");
+    console.error("用法：node index.js --target 318.64 --topK 10 [--source AB] [--minArea 60] [--maxArea 140]");
     process.exit(1);
   }
 
@@ -52,8 +52,6 @@ function run(argv = process.argv) {
   }
 
   const topK = Number(args.topK ?? cfg.topK ?? 10);
-  const fileAPath = path.resolve(args.A ?? cfg.fileAPath ?? "./data/qifang.txt");
-  const fileBPath = path.resolve(args.B ?? cfg.fileBPath ?? "./data/xianfang.txt");
   const source = (args.source ?? cfg.source ?? "AB").toUpperCase();
 
   // 解析 Excel 输出路径：命令行优先，其次 config.json，最后当使用 --excel 且未给路径时默认 ./output.xlsx
@@ -71,7 +69,7 @@ function run(argv = process.argv) {
   const minArea = args.minArea !== undefined ? Number(args.minArea) : (cfg.minArea !== undefined ? Number(cfg.minArea) : undefined);
   const maxArea = args.maxArea !== undefined ? Number(args.maxArea) : (cfg.maxArea !== undefined ? Number(cfg.maxArea) : undefined);
 
-  const results = solveTopK(target, { topK, source, fileAPath, fileBPath, minArea, maxArea });
+  const results = solveTopK(target, { topK, source, minArea, maxArea });
   console.log(JSON.stringify(results, null, 2));
 
   if (excelPath) {

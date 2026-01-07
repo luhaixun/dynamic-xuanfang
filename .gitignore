@@ -9,3 +9,4 @@ env
 # output files
 output.xlsx
 .DS_Store
+data/*.json

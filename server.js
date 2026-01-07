@@ -12,18 +12,110 @@ const path = require("path");
 const { URL } = require("url");
 const { solveTopK } = require("./src/solver");
 const { exportToExcel } = require("./src/export");
+const { xianfangRows } = require("./src/data");
+const { Worker } = require("worker_threads");
+const os = require("os");
 
 const PORT = 3000;
 const PUBLIC_DIR = path.resolve(__dirname, "public");
 const CONFIG_PATH = path.resolve(__dirname, "config.json");
 
-function readConfig() {
+// Worker pool for concurrent solveTopK to support multiple users
+class WorkerPool {
+  constructor(workerPath, size) {
+    this.workerPath = workerPath;
+    this.size = Math.max(1, Number(size) || 1);
+    this.idle = [];
+    this.queue = [];
+    this.currentTasks = new Map();
+    for (let i = 0; i < this.size; i++) this._spawn();
+  }
+  _spawn() {
+    const worker = new Worker(this.workerPath);
+    worker.on("message", (msg) => {
+      const task = this.currentTasks.get(worker);
+      if (task) {
+        this.currentTasks.delete(worker);
+        if (msg && msg.ok) task.resolve(msg.results);
+        else task.reject(new Error((msg && msg.error) || "Worker failed"));
+      }
+      this.idle.push(worker);
+      this._dequeue();
+    });
+    worker.on("error", (err) => {
+      const task = this.currentTasks.get(worker);
+      if (task) {
+        this.currentTasks.delete(worker);
+        task.reject(err);
+      }
+      this._replace(worker);
+    });
+    worker.on("exit", (code) => {
+      const task = this.currentTasks.get(worker);
+      if (task) {
+        this.currentTasks.delete(worker);
+        task.reject(new Error(`Worker exited with code ${code}`));
+      }
+      this._replace(worker);
+    });
+    this.idle.push(worker);
+  }
+  _replace(oldWorker) {
+    const i = this.idle.indexOf(oldWorker);
+    if (i >= 0) this.idle.splice(i, 1);
+    this._spawn();
+    this._dequeue();
+  }
+  _run(worker, payload, resolve, reject) {
+    this.currentTasks.set(worker, { resolve, reject });
+    worker.postMessage(payload);
+  }
+  _dequeue() {
+    if (!this.queue.length || !this.idle.length) return;
+    const worker = this.idle.pop();
+    const job = this.queue.shift();
+    this._run(worker, job.payload, job.resolve, job.reject);
+  }
+  runTask(payload) {
+    return new Promise((resolve, reject) => {
+      const worker = this.idle.pop();
+      if (worker) this._run(worker, payload, resolve, reject);
+      else this.queue.push({ payload, resolve, reject });
+    });
+  }
+}
+// Default concurrency: CPU cores - 1 (keep 1 core for main thread)
+const POOL = new WorkerPool(
+  path.resolve(__dirname, "src/solve-worker.js"),
+  Math.max(1, (os.cpus()?.length || 2) - 1)
+);
+
+/**
+ * 配置缓存：避免每次请求同步读取磁盘
+ * - 启动时加载一次
+ * - 通过 fs.watchFile 监听变更并热更新缓存
+ */
+let CONFIG_CACHE = {};
+function reloadConfig() {
   try {
     const txt = fs.readFileSync(CONFIG_PATH, "utf8");
-    return JSON.parse(txt);
+    CONFIG_CACHE = JSON.parse(txt);
   } catch {
-    return {};
+    CONFIG_CACHE = {};
   }
+}
+// 首次加载
+reloadConfig();
+// 监听文件变化，自动更新缓存
+try {
+  fs.watchFile(CONFIG_PATH, { interval: 1000 }, () => {
+    reloadConfig();
+    console.log("[LOG] config.json reloaded");
+  });
+} catch {}
+
+function readConfig() {
+  return CONFIG_CACHE;
 }
 
 function sendJson(res, obj, status = 200) {
@@ -59,8 +151,6 @@ function handleSolve(urlObj, res) {
   // 解析参数，命令行/前端传入优先，其次 config.json 默认
   const topK = Number(q.topK ?? cfg.topK ?? 10);
   const source = String(q.source ?? cfg.source ?? "AB").toUpperCase();
-  const fileAPath = path.resolve(q.A ?? cfg.fileAPath ?? "./data/qifang.txt");
-  const fileBPath = path.resolve(q.B ?? cfg.fileBPath ?? "./data/xianfang.txt");
 
   const minArea =
     q.minArea !== undefined
@@ -75,18 +165,13 @@ function handleSolve(urlObj, res) {
       ? Number(cfg.maxArea)
       : undefined;
 
-  try {
-    const results = solveTopK(target, {
-      topK,
-      source,
-      fileAPath,
-      fileBPath,
-      minArea,
-      maxArea,
-    });
-    return sendJson(res, results);
-  } catch (e) {
-    return sendJson(res, { error: e.message }, 500);
+  {
+    const xfCommunities = urlObj.searchParams.getAll("xfCommunities");
+    const options = { topK, source, minArea, maxArea, xfCommunities };
+    POOL.runTask({ target, options })
+      .then((results) => sendJson(res, results))
+      .catch((e) => sendJson(res, { error: (e && e.message) ? e.message : String(e) }, 500));
+    return;
   }
 }
 
@@ -101,8 +186,6 @@ function handleExcel(urlObj, res) {
 
   const topK = Number(q.topK ?? cfg.topK ?? 10);
   const source = String(q.source ?? cfg.source ?? "AB").toUpperCase();
-  const fileAPath = path.resolve(q.A ?? cfg.fileAPath ?? "./data/qifang.txt");
-  const fileBPath = path.resolve(q.B ?? cfg.fileBPath ?? "./data/xianfang.txt");
 
   const minArea =
     q.minArea !== undefined
@@ -118,38 +201,63 @@ function handleExcel(urlObj, res) {
       : undefined;
 
   let tmpXlsx = path.resolve(__dirname, `output-${Date.now()}.xlsx`);
-  try {
-    const results = solveTopK(target, {
-      topK,
-      source,
-      fileAPath,
-      fileBPath,
-      minArea,
-      maxArea,
-    });
-    exportToExcel(results, tmpXlsx);
-
-    // 返回下载
-    const stat = fs.statSync(tmpXlsx);
-    res.writeHead(200, {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="results.xlsx"`,
-      "Content-Length": stat.size,
-    });
-    const stream = fs.createReadStream(tmpXlsx);
-    stream.pipe(res);
-    stream.on("close", () => {
-      // 尝试删除临时文件
-      fs.unlink(tmpXlsx, () => {});
-    });
-  } catch (e) {
-    // 若出错，尝试删除临时文件
-    try {
-      fs.unlinkSync(tmpXlsx);
-    } catch {}
-    return sendJson(res, { error: e.message }, 500);
+  {
+    const xfCommunities = urlObj.searchParams.getAll("xfCommunities");
+    const options = { topK, source, minArea, maxArea, xfCommunities };
+    POOL.runTask({ target, options })
+      .then((results) => {
+        try {
+          exportToExcel(results, tmpXlsx);
+          const stat = fs.statSync(tmpXlsx);
+          res.writeHead(200, {
+            "Content-Type":
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "Content-Disposition": `attachment; filename="results.xlsx"`,
+            "Content-Length": stat.size,
+          });
+          const stream = fs.createReadStream(tmpXlsx);
+          stream.pipe(res);
+          stream.on("close", () => {
+            fs.unlink(tmpXlsx, () => {});
+          });
+        } catch (e) {
+          try { fs.unlinkSync(tmpXlsx); } catch {}
+          sendJson(res, { error: e.message }, 500);
+        }
+      })
+      .catch((e) => {
+        try { fs.unlinkSync(tmpXlsx); } catch {}
+        sendJson(res, { error: (e && e.message) ? e.message : String(e) }, 500);
+      });
+    return;
   }
+}
+
+/**
+ * 现房小区列名检测与列表生成
+ */
+function detectCommunityKey(rows) {
+  const first = (rows && rows[0]) || {};
+  const keys = Object.keys(first);
+  const preferred = ["小区名称", "小区", "小区名", "项目名称", "楼盘名称"];
+  for (const k of preferred) {
+    if (keys.includes(k)) return k;
+  }
+  const fuzzy = keys.find((k) => /小区|项目|楼盘/.test(String(k)));
+  return fuzzy;
+}
+function listXfCommunities() {
+  const key = detectCommunityKey(xianfangRows);
+  if (!key) return [];
+  const set = new Set();
+  for (const r of xianfangRows) {
+    const v = r[key];
+    if (v !== null && v !== undefined) {
+      const name = String(v).trim();
+      if (name) set.add(name);
+    }
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b, "zh-Hans-CN"));
 }
 
 const server = http.createServer((req, res) => {
@@ -174,8 +282,18 @@ const server = http.createServer((req, res) => {
     return handleExcel(urlObj, res);
   }
 
+  // 现房小区列表接口
+  if (req.method === "GET" && pathname === "/communities") {
+    const type = urlObj.searchParams.get("type");
+    if (type === "xf") {
+      return sendJson(res, listXfCommunities());
+    }
+    return sendJson(res, []);
+  }
+
   // 静态资源（若需要可扩展）
-  const staticPath = path.join(PUBLIC_DIR, pathname);
+  // Resolve static asset path safely under PUBLIC_DIR (avoid absolute override)
+  const staticPath = path.resolve(PUBLIC_DIR, '.' + pathname);
   if (fs.existsSync(staticPath) && fs.statSync(staticPath).isFile()) {
     const ext = path.extname(staticPath).toLowerCase();
     const mimes = {
@@ -196,5 +314,6 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
+  console.log("上海市闵行区梅陇镇城中村 选房程序（内部版）");
   console.log(`UI 服务已启动：http://localhost:${PORT}`);
 });
