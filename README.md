@@ -1,20 +1,25 @@
 # 上海市闵行区梅陇镇城中村 选房程序（内部版）
 
 这是一个使用 Node.js 编写的小工具，用于从两个 Excel 数据源（期房 / 现房）中，
-计算总面积不超过目标值（≤ target）且最接近目标值的 Top-K 组合方案。
+计算总面积不超过目标值（≤ target）且最接近目标值的 Top-K 组合方案。数据在启动时一次性从 Excel 读入并保存在内存中，保留全部字段（不丢弃任何列）。
 
-数据在启动时一次性从 Excel 读入并保存在内存中，保留全部字段（不丢弃任何列）。
+本项目同时提供：
+- Web UI（前端筛选、交互式查看与导出）
 
 ---
 
 ## 核心规则
 
-- 结果条数只能是 3 条或 4 条
-- 户型必须覆盖 A / B / C（各至少 1 条）
-- 4 条时，只允许某一类重复一次（如 A×2,B×1,C×1）
+- 结果条数只能是 3 套或 4 套
+- 户型必须覆盖 A / B / C（各至少 1 套）
+- 4 套时，只允许某一类重复一次（如 A×2、B×1、C×1）
 - 总面积 ≤ target，且尽量接近 target
-- 至少 1 条必须来自“现房”数据源
+- 至少 1 套必须来自“现房”数据源（B）
+- 后端硬约束：不允许出现“两套‘大’（面积 > 100）且均来自期房（A）”的组合
 - 返回最优的前 K 条结果（K 可配置）
+
+策略（可在 config.json 启用）：
+- disallowDominantWithSmallOthers：不允许“恰好 1 条面积 > dominantMoreThan，且其余所有条目面积 < othersLessThan”的组合（默认阈值示例：dominantMoreThan=100，othersLessThan=70）
 
 ---
 
@@ -40,44 +45,22 @@
 
 ```text
 project/
-├── index.js
-├── server.js            # Web UI 与 API（可选使用）
+├── server.js            # Web UI 与 API
 ├── config.json          # 默认配置（topK/source/导出/过滤策略等）
 ├── data/
 │   ├── 期房-汇总.xlsx   # 期房数据（工作表：期房汇总）
 │   └── 现房-汇总.xlsx   # 现房数据（工作表：现房汇总）
+├── public/
+│   └── index.html       # 前端页面与交互逻辑（筛选、导出、Overlay）
 └── src/
     ├── data.js          # 启动时一次性加载 Excel，保留所有列
-    ├── solver.js        # 核心组合搜索与 TopK
+    ├── solver.js        # 核心组合搜索与 TopK（含约束校验）
     ├── export.js        # 结果导出到 Excel
     ├── normalize.js     # 类型归一化（A/B/C/D 与 A类/B类/C类/D类）
     ├── bisect.js        # 二分查找工具
     ├── topk.js          # TopK 容器与去重
-    └── cli.js           # 命令行入口
+    └── cli.js           # 命令行入口（内部开发用，不对外提供）
 ```
-
----
-
-## 使用方式
-
-### 命令行
-
-```bash
-node index.js --target 318.64 --topK 10 [--source AB] [--minArea 60] [--maxArea 140] [--refresh]
-```
-
-参数说明：
-- `--target`：目标面积（必填）
-- `--topK`：返回结果数量（默认 10）
-- `--source`：来源选择（A / B / AB，默认 AB）
-- `--minArea`：最小面积过滤（可选，剔除 area < minArea 的条目）
-- `--maxArea`：最大面积过滤（可选，剔除 area > maxArea 的条目）
-- `--refresh`：强制从 Excel 解析并覆盖 JSON 缓存（默认优先使用缓存）
-
-说明：
-- 数据会在启动时从 data/期房-汇总.xlsx 与 data/现房-汇总.xlsx 的指定工作表读入一次，并保留所有列。
-- 仍然使用“建筑面积”作为面积字段参与计算与过滤。
-- 结果条目的类型标签会附加“(期房)”或“(现房)”以标示来源。
 
 ---
 
@@ -89,8 +72,8 @@ node index.js --target 318.64 --topK 10 [--source AB] [--minArea 60] [--maxArea 
     "topK": 10,
     "source": "AB",
     "excel": "./output.xlsx",
-    "minArea": null,
-    "maxArea": null,
+    "minArea": 60,
+    "maxArea": 125.76,
     "policy": {
       "disallowDominantWithSmallOthers": true,
       "dominantMoreThan": 100,
@@ -98,58 +81,52 @@ node index.js --target 318.64 --topK 10 [--source AB] [--minArea 60] [--maxArea 
     }
   }
   ```
-  注：旧版的 `fileAPath` / `fileBPath` 不再使用，数据改为直接从 Excel 加载，若仍存在可忽略或删除。
 - 覆盖优先级（从高到低）：
-  1) 命令行参数（--topK / --source / --minArea / --maxArea）
-  2) 代码传入的 options（solveTopK(target, options)）
-  3) config.json 默认值（若未传入则采用）
-
-- 面积过滤示例：
-  ```bash
-  node index.js --target 318.64 --minArea 63 --maxArea 126
-  ```
+  1) 服务端查询参数（/solve 接口的 Query：topK / source / minArea / maxArea）
+  2) config.json 默认值（若未传入则采用）
 
 ---
 
-## 导出为 Excel
+## Web UI 与前端筛选
 
-支持将结果导出为 Excel（.xlsx）文件，表格名称为“TopK结果”，包含以下列：
-- 条目1面积、条目1类型、条目2面积、条目2类型、条目3面积、条目3类型、条目4面积、条目4类型
-- 兑换面积、目标面积、浪费面积
+启动服务：
+```bash
+node server.js
+# 浏览器访问：http://localhost:3000
+```
 
-使用方式：
-- 方式一：通过命令行参数
-  - 指定输出路径：
-    ```bash
-    node index.js --target 318.64 --excel ./output.xlsx
-    ```
-  - 仅开启导出（使用默认路径或 config.json 中配置的 excel）：
-    ```bash
-    node index.js --target 318.64 --excel
-    ```
-- 方式二：通过配置文件 config.json
-  - 在 config.json 中添加/修改：
-    ```json
-    {
-      "excel": "./output.xlsx"
-    }
-    ```
-
-覆盖优先级（从高到低）：命令行 --excel > config.json 的 excel 字段
+页面功能：
+- 表格排序
+  - 纵向：每套组合按“最大单套面积”降序排列
+  - 横向：每行的房1~房4按面积降序排列
+- 套型组合（结构筛选重命名）
+  - 下拉：套型组合（原“结构筛选”）
+  - 选项：大+中+中（LMM）、大+大+小（LLS）、中+中+中+小（MMMS）、中+中+小+小（MMSS）、不限
+  - 分类阈值：大（>100）、中（70< a <100）、小（<70），边界值（=70 或 =100）归为“边界”，不参与上述三类计数
+- 现房小区（多选）
+  - 默认勾选：“辰香苑”“银香苑”“景华新苑”（若存在于列表）
+  - 下拉按钮文案随选择项更新，≥3 项显示“已选 N 个小区”
+- 楼层筛选（多选）
+  - 分为“期房楼层”（多选）与“现房楼层”（多选）两个独立下拉
+  - 从表格动态生成可选楼层；规则：楼层 = 室号除以 100 的整数部分（如 1101 → 11）
+  - 逻辑：若对应下拉有选择，则该来源（期房/现房）至少命中一个所选楼层；两个来源条件需同时满足；若某来源未选择则视为不限
+- 期房数量 / 现房数量筛选
+  - 分别筛选每行组合中期房/现房的套数（0~4 或不限）
+- 计算中遮罩（Overlay）
+  - 发起计算时显示全屏遮罩“计算中，请稍候…”，并禁用“计算”按钮，防止误操作；完成或失败后自动隐藏
+- 导出到 Excel
+  - 前端导出：文件名采用目标面积命名，格式为 `results-{target}.xlsx`，若目标为空则为 `results.xlsx`
+  - 服务端导出（回退方案）：/excel 接口的响应头 filename 同样使用目标面积命名
 
 ---
 
-## Web UI 与 API（可选）
+## API 说明（服务端）
 
-- server.js 提供简易 HTTP 服务：
-  - GET /           返回前端页面（public/index.html）
-  - GET /config     返回当前配置
-  - GET /solve      根据查询参数计算并返回 JSON 结果
-  - GET /excel      根据查询参数计算并返回 Excel 文件下载
-  - 启动参数：支持 --refresh（强制从 Excel 解析并覆盖缓存；默认优先使用 JSON 缓存）
-- 前端页面不再允许传入数据文件路径，服务端会在启动时读取 Excel 并在内存中使用。
-
-注意：若不需要 Web UI，可直接使用命令行。
+- GET `/`：返回前端页面（public/index.html）
+- GET `/config`：返回当前配置
+- GET `/solve?target=...&topK=...&source=...&minArea=...&maxArea=...&xfCommunities=...`：根据查询参数计算并返回 JSON 结果
+- GET `/excel?target=...`：根据查询参数计算并返回 Excel 文件下载（文件名：results-{target}.xlsx）
+- GET `/communities?type=xf`：返回现房小区列表（自动检测列名，如“小区名称/项目名称/楼盘名称”等）
 
 ---
 
@@ -158,10 +135,10 @@ node index.js --target 318.64 --topK 10 [--source AB] [--minArea 60] [--maxArea 
 ```js
 {
   result: [
-    [62.65, "A(期房)"],
-    [64.35, "A(期房)"],
-    [63.06, "B(现房)"],
-    [128.57, "C(现房)"]
+    [62.65, "A(期房) 1幢 29号 101室"],
+    [64.35, "A(期房) 1幢 29号 102室"],
+    [63.06, "(银香苑 1幢 29号 101室)"],
+    [128.57, "(景华新苑 2幢 19号 1101室)"]
   ],
   "兑换面积": 318.63,
   "目标面积": 318.64,
@@ -193,9 +170,8 @@ node index.js --target 318.64 --topK 10 [--source AB] [--minArea 60] [--maxArea 
 - 显式传入 `--refresh` 标志（强制刷新）
 
 说明：
-- `--refresh` 同时适用于服务端与命令行：
+- `--refresh` 适用于服务端：
   - 服务端示例：`node server.js --refresh`
-  - 命令行示例：`node index.js --target 318.64 --topK 10 --refresh`
 - 无论从 Excel 还是缓存 JSON 加载，都会进行表头校验：必须包含“建筑面积”与类型列（期房“类别”、现房“类型”）；缺失时会抛出错误。
 
 仅刷新缓存（不启动服务）示例：
@@ -207,6 +183,19 @@ node -e "require('./src/data')"
 node -e "process.argv.push('--refresh'); require('./src/data')"
 ```
 
+---
+
 ## 运行环境
 
 - Node.js ≥ 16
+
+---
+
+## 变更日志（近期）
+
+- 新增“套型组合”筛选（原“结构筛选”重命名），新增模式：大+大+小（LLS）
+- 新增期房/现房楼层两个独立多选筛选，下拉选项从表格动态生成；命中任一所选楼层即可
+- 现房小区多选默认勾选：辰香苑、银香苑、景华新苑（若列表存在）
+- 增加“计算中”全屏遮罩，计算期间禁用交互，防误操作
+- 导出到 Excel 的文件名使用目标面积命名：results-{target}.xlsx（前端与服务端一致）
+- 后端新增硬约束：不允许两套“大”（>100）均来自期房的组合入榜

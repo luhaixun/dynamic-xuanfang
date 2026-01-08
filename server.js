@@ -209,10 +209,12 @@ function handleExcel(urlObj, res) {
         try {
           exportToExcel(results, tmpXlsx);
           const stat = fs.statSync(tmpXlsx);
+          const tStr = String(target).trim();
+          const safeName = (tStr && tStr !== 'NaN') ? `results-${tStr}.xlsx` : 'results.xlsx';
           res.writeHead(200, {
             "Content-Type":
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "Content-Disposition": `attachment; filename="results.xlsx"`,
+            "Content-Disposition": `attachment; filename="${safeName}"`,
             "Content-Length": stat.size,
           });
           const stream = fs.createReadStream(tmpXlsx);

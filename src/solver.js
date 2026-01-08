@@ -209,6 +209,12 @@ function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, dis
     if (sum > targetNum) return; // 必须满足 sum ≤ target
     if (!hasAtLeastOneFromB(picked)) return;
 
+    // 规则：不允许出现“两套大面积（>100）且均来自期房”的组合
+    const largeQCount = picked.reduce((acc, x) => {
+      return acc + ((x.srcFile === fileAName && x.area > 100) ? 1 : 0);
+    }, 0);
+    if (largeQCount >= 2) return;
+
     // 规则过滤：不允许“恰好 1 条面积 > dominantMoreThan，且其余所有条目面积 < othersLessThan”
     if (disallowDominant && Number.isFinite(dominantMoreThan) && Number.isFinite(othersLessThan)) {
       const areas = picked.map((x) => x.area);
