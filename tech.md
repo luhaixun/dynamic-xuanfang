@@ -1,6 +1,6 @@
-# 技术图谱：index.js
+# 技术图谱：核心算法与模块化（src/*）
 
-本文档以 Mermaid 流程图描述 index.js（及模块化后的 src/*）的核心逻辑与数据流，包括输入解析、数据加载、类型归一化、候选生成、组合搜索（3 条与 4 条）、约束校验以及 TopK 维护。
+本文档以 Mermaid 流程图描述模块化的 src/* 的核心逻辑与数据流，包括输入解析、数据加载、类型归一化、候选生成、组合搜索（3 条与 4 条）、约束校验以及 TopK 维护。服务运行由 server.js 提供 Web UI 与 API。
 
 ```mermaid
 flowchart TD
@@ -94,7 +94,7 @@ flowchart TD
 
 ## 文件说明
 
-- index.js：对 src/* 模块的薄封装。直接执行时运行 CLI；作为库引入时，导出公共 API（solveTopK、bestTopKCombos、normalizeType、loadArrayFromTxt）。
+- server.js：Web UI 与 API 服务入口。
 - src/cli.js：命令行入口。解析命令行参数（target、topK、A、B、source）并输出 JSON 结果。
 - src/solver.js：核心求解模块。实现 bestTopKCombos（枚举 + 剪枝 + 二分 + TopK）与 solveTopK（数据加载、来源选择、结果格式化）。
 - src/io.js：文件加载工具。支持从纯 JSON 数组或 JS 变量赋值（如 qifang = [...] / xianfang = [...]）中解析数组，并使用沙箱 VM 执行。

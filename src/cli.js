@@ -8,7 +8,8 @@ const { solveTopK } = require("./solver");
 const { exportToExcel } = require("./export");
 
 /**
- * 解析命令行参数（例如：node index.js --target 318.64 --topK 10 --A ./data/qifang.txt --B ./data/xianfang.txt [--source AB]）
+ * 解析命令行参数（内部开发用）
+ * 示例：node -e "require('./src/cli').run(process.argv)" --target 318.64 --topK 10 [--source AB] [--minArea 60] [--maxArea 140]
  * @param {string[]} argv
  * @returns {Record<string, string|boolean>}
  */
@@ -38,7 +39,7 @@ function run(argv = process.argv) {
 
   const target = Number(args.target ?? args.t);
   if (!Number.isFinite(target) || target <= 0) {
-    console.error("用法：node index.js --target 318.64 --topK 10 [--source AB] [--minArea 60] [--maxArea 140]");
+    console.error("用法：--target 318.64 --topK 10 [--source AB] [--minArea 60] [--maxArea 140]");
     process.exit(1);
   }
 
