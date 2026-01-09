@@ -355,11 +355,6 @@
       </div>
     </div>
     <div class="row" style="gap:8px; margin:8px 0;">
-      <input id="filterText" type="text" placeholder="筛选关键词，如 A(期房)/银香苑/景香苑" style="flex:1;" />
-      <select id="filterMode" style="width:160px;">
-        <option value="include">包含匹配</option>
-        <option value="exclude">排除匹配</option>
-      </select>
       <select id="structureFilter" style="width:200px;">
         <option value="none">套型组合：不限</option>
         <option value="LMM">大+中+中</option>
@@ -880,8 +875,10 @@
         countEl.textContent = '';
         return;
       }
-      const keyword = document.getElementById('filterText').value.trim();
-      const mode = document.getElementById('filterMode').value || 'include';
+      const keywordEl = document.getElementById('filterText');
+      const modeEl = document.getElementById('filterMode');
+      const keyword = keywordEl ? keywordEl.value.trim() : '';
+      const mode = modeEl ? (modeEl.value || 'include') : 'include';
       const struct = (document.getElementById('structureFilter')?.value) || 'none';
       const qSel = (document.getElementById('qfCountFilter')?.value) || 'any';
       const xSel = (document.getElementById('xfCountFilter')?.value) || 'any';
@@ -977,10 +974,14 @@
         const showQBuild = qBuildSel.length === 0 ? true : qBuildsRow.some(b => qBuildSel.includes(b));
         const showXBuild = xfBuildSel.length === 0 ? true : xBuildsRow.some(b => xfBuildSel.includes(b));
 
-        // 门牌号筛选
+        // 门牌号筛选（期房严格包含：若选择了门牌号，则该行所有期房门牌必须都在选择集合中）
         const qDoorsRow = infoItems.filter(it => it.type === 'qf' && Number.isFinite(it.door)).map(it => it.door);
         const xDoorsRow = infoItems.filter(it => it.type === 'xf' && Number.isFinite(it.door)).map(it => it.door);
-        const showQDoor = qDoorSel.length === 0 ? true : qDoorsRow.some(d => qDoorSel.includes(d));
+        // 期房门牌：当选择集合非空时，要求至少有一个期房门牌，且所有期房门牌都属于选择集合
+        const showQDoor = qDoorSel.length === 0
+          ? true
+          : (qDoorsRow.length > 0 && qDoorsRow.every(d => qDoorSel.includes(d)));
+        // 现房门牌：保持“任一命中即可”的宽松逻辑
         const showXDoor = xfDoorSel.length === 0 ? true : xDoorsRow.some(d => xfDoorSel.includes(d));
 
         const show = showKeyword && showStruct && showQ && showX && showF && showQCat && showXCat && showQBuild && showXBuild && showQDoor && showXDoor;
@@ -1157,14 +1158,14 @@
     document.getElementById('solve-form').addEventListener('submit', onSubmit);
     document.getElementById('btn-export-table').addEventListener('click', exportFilteredTableToExcel);
     // 过滤控件事件绑定
-    document.getElementById('filterText').addEventListener('input', applyFilter);
-    document.getElementById('filterMode').addEventListener('change', applyFilter);
+    document.getElementById('filterText')?.addEventListener('input', applyFilter);
+    document.getElementById('filterMode')?.addEventListener('change', applyFilter);
     document.getElementById('structureFilter').addEventListener('change', applyFilter);
     document.getElementById('qfCountFilter')?.addEventListener('change', applyFilter);
     document.getElementById('xfCountFilter')?.addEventListener('change', applyFilter);
     document.getElementById('filterClear').addEventListener('click', () => {
       const input = document.getElementById('filterText');
-      input.value = '';
+      if (input) input.value = '';
       const qSel = document.getElementById('qfCountFilter');
       const xSel = document.getElementById('xfCountFilter');
       if (qSel) qSel.value = 'any';
