@@ -1,11 +1,12 @@
 {
-  "topK": 999,
+  "topK": 30000,
   "source": "AB",
   "fileAPath": "./data/期房-汇总.json",
   "fileBPath": "./data/现房-汇总.json",
   "excel": "./output.xlsx",
   "minArea": 50,
   "maxArea": 125.76,
+  "targetPresets": [318.64, 312.64],
   "policy": {
     "disallowDominantWithSmallOthers": true,
     "dominantMoreThan": 100,

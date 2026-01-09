@@ -291,13 +291,14 @@ function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, dis
     return {
       result: picked.map((x) => {
         if (x.srcFile === fileBName) {
-          // 现房：显示小区名 + 幢号 + 门牌号 + 室号；若缺失则回退到 "(现房)"
-          const parts = [];
-          if (x.community) parts.push(String(x.community).trim());
-          if (x.buildingNo) parts.push(`${String(x.buildingNo).trim()}幢`);
-          if (x.doorNo) parts.push(`${String(x.doorNo).trim()}号`);
-          if (x.roomNo) parts.push(`${String(x.roomNo).trim()}室`);
-          const label = parts.length ? `(${parts.join(' ')})` : `${x.type}(现房)`;
+          // 现房：显示类别 + “(现房)” + 小区名 + 幢号 + 门牌号 + 室号；若缺失则仅显示“类别(现房)”
+          const infoParts = [];
+          if (x.community) infoParts.push(String(x.community).trim());
+          if (x.buildingNo) infoParts.push(`${String(x.buildingNo).trim()}幢`);
+          if (x.doorNo) infoParts.push(`${String(x.doorNo).trim()}号`);
+          if (x.roomNo) infoParts.push(`${String(x.roomNo).trim()}室`);
+          const info = infoParts.length ? `(${infoParts.join(' ')})` : '';
+          const label = `${x.type}(现房)` + (info ? ` ${info}` : '');
           return [x.area, label];
         }
         // 期房：保留“(期房)”用于前端统计，再追加门牌号/室号/幢号（若存在）

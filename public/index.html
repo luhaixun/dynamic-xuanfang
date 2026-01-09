@@ -191,11 +191,22 @@
       padding: 10px 12px;
       text-align: left;
       cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .dropdown-btn:focus {
       border-color: var(--accent-2);
       outline: none;
+    }
+    /* 仅针对现房小区选择按钮：显示全部所选小区，不省略 */
+    #xfDropdown .dropdown-btn {
+      width: 100%;          /* 占满容器宽度 */
+      display: block;
+      white-space: normal;  /* 允许换行，完整显示全部名称 */
+      overflow: visible;    /* 不裁剪 */
+      text-overflow: clip;  /* 不使用省略号 */
     }
 
     .dropdown-menu {
@@ -274,8 +285,22 @@
       <form id="solve-form">
         <div class="grid">
           <div>
-            <label for="target">目标面积 target（必填）</label>
-            <input id="target" name="target" type="number" step="0.01" placeholder="示例：318.64" required />
+            <label>目标面积 target（请选择预设或输入）</label>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <label class="badge" style="cursor:pointer;">
+                <input type="radio" name="targetChoice" id="targetPreset1" value="" checked />
+                <span id="targetPreset1Label">预设1</span>
+              </label>
+              <label class="badge" style="cursor:pointer;">
+                <input type="radio" name="targetChoice" id="targetPreset2" value="" />
+                <span id="targetPreset2Label">预设2</span>
+              </label>
+              <label class="badge" style="cursor:pointer;">
+                <input type="radio" name="targetChoice" id="targetCustomRadio" value="custom" />
+                自定义
+              </label>
+              <input id="targetCustom" type="number" step="0.01" placeholder="输入目标面积" style="min-width:160px; display:none;" />
+            </div>
           </div>
           <div>
             <label for="topK">返回数量 topK</label>
@@ -297,7 +322,7 @@
             <label for="maxArea">最大面积 maxArea</label>
             <input id="maxArea" name="maxArea" type="number" step="0.01" placeholder="可留空" />
           </div>
-          <div class="grid">
+          <div class="grid" style="grid-column: span 2;">
             <div style="grid-column: span 4;">
               <label>现房小区（多选，留空=全部现房）</label>
               <div class="dropdown" id="xfDropdown">
@@ -377,6 +402,69 @@
           <div id="xfFloorOptions"></div>
         </div>
       </div>
+      <!-- 新增：期房/现房 A/B/C 类别筛选 -->
+      <div class="dropdown" id="qfCatDropdown" style="width:160px;">
+        <button type="button" class="dropdown-btn" id="qfCatDropdownBtn">期房类别：不限</button>
+        <div class="dropdown-menu" id="qfCatDropdownMenu" style="display:none;">
+          <div class="xf-actions">
+            <button type="button" class="btn" id="qfCatSelectAll">全选</button>
+            <button type="button" class="btn secondary" id="qfCatClearAll">清空</button>
+          </div>
+          <div id="qfCatOptions"></div>
+        </div>
+      </div>
+      <div class="dropdown" id="xfCatDropdown" style="width:160px;">
+        <button type="button" class="dropdown-btn" id="xfCatDropdownBtn">现房类别：不限</button>
+        <div class="dropdown-menu" id="xfCatDropdownMenu" style="display:none;">
+          <div class="xf-actions">
+            <button type="button" class="btn" id="xfCatSelectAll">全选</button>
+            <button type="button" class="btn secondary" id="xfCatClearAll">清空</button>
+          </div>
+          <div id="xfCatOptions"></div>
+        </div>
+      </div>
+      <!-- 新增：期房/现房 幢号筛选 -->
+      <div class="dropdown" id="qfBuildingDropdown" style="width:160px;">
+        <button type="button" class="dropdown-btn" id="qfBuildingDropdownBtn">期房幢号：不限</button>
+        <div class="dropdown-menu" id="qfBuildingDropdownMenu" style="display:none;">
+          <div class="xf-actions">
+            <button type="button" class="btn" id="qfBuildingSelectAll">全选</button>
+            <button type="button" class="btn secondary" id="qfBuildingClearAll">清空</button>
+          </div>
+          <div id="qfBuildingOptions"></div>
+        </div>
+      </div>
+      <div class="dropdown" id="xfBuildingDropdown" style="width:160px;">
+        <button type="button" class="dropdown-btn" id="xfBuildingDropdownBtn">现房幢号：不限</button>
+        <div class="dropdown-menu" id="xfBuildingDropdownMenu" style="display:none;">
+          <div class="xf-actions">
+            <button type="button" class="btn" id="xfBuildingSelectAll">全选</button>
+            <button type="button" class="btn secondary" id="xfBuildingClearAll">清空</button>
+          </div>
+          <div id="xfBuildingOptions"></div>
+        </div>
+      </div>
+      <!-- 新增：期房/现房 门牌号筛选 -->
+      <div class="dropdown" id="qfDoorDropdown" style="width:160px;">
+        <button type="button" class="dropdown-btn" id="qfDoorDropdownBtn">期房门牌：不限</button>
+        <div class="dropdown-menu" id="qfDoorDropdownMenu" style="display:none;">
+          <div class="xf-actions">
+            <button type="button" class="btn" id="qfDoorSelectAll">全选</button>
+            <button type="button" class="btn secondary" id="qfDoorClearAll">清空</button>
+          </div>
+          <div id="qfDoorOptions"></div>
+        </div>
+      </div>
+      <div class="dropdown" id="xfDoorDropdown" style="width:160px;">
+        <button type="button" class="dropdown-btn" id="xfDoorDropdownBtn">现房门牌：不限</button>
+        <div class="dropdown-menu" id="xfDoorDropdownMenu" style="display:none;">
+          <div class="xf-actions">
+            <button type="button" class="btn" id="xfDoorSelectAll">全选</button>
+            <button type="button" class="btn secondary" id="xfDoorClearAll">清空</button>
+          </div>
+          <div id="xfDoorOptions"></div>
+        </div>
+      </div>
       <button type="button" class="btn" id="filterClear">清空筛选</button>
     </div>
     <div id="results" class="results">尚未计算</div>
@@ -385,7 +473,7 @@
   <div class="card">
     <div class="muted">说明</div>
     <ul class="muted">
-      <li>类型标记：期房显示 A/B/C + “(期房)”并追加 幢号/门牌号/室号（若有），如“A(期房) 1幢 29号 101室”；现房显示为对应小区名称+幢号+门牌号+室号，如“(银香苑 1幢 29号 101室)”。</li>
+      <li>类型标记：期房显示 A/B/C + “(期房)”并追加 幢号/门牌号/室号（若有），如“A(期房) 1幢 29号 101室”；现房显示 类别 + “(现房)”并追加 小区名称+幢号+门牌号+室号，如“A(现房) (景香苑 1幢 29号 101室)”。</li>
       <li>字段含义：“兑换面积”（组合总面积）、“目标面积”（输入目标）、“浪费面积”（目标面积 - 兑换面积）。</li>
       <li>服务器默认端口：http://localhost:3000 。可在 server.js 中修改。</li>
     </ul>
@@ -411,6 +499,19 @@
         document.getElementById('source').value = (cfg.source ?? 'AB').toUpperCase();
         document.getElementById('minArea').value = (cfg.minArea ?? '');
         document.getElementById('maxArea').value = (cfg.maxArea ?? '');
+
+        // 目标面积预设：从配置读取 targetPresets[0..1]，否则使用默认值
+        const presets = Array.isArray(cfg.targetPresets) ? cfg.targetPresets.slice(0, 2) : [];
+        const p1 = presets[0] ?? 318.64;
+        const p2 = presets[1] ?? 300;
+        const preset1Input = document.getElementById('targetPreset1');
+        const preset2Input = document.getElementById('targetPreset2');
+        const preset1Label = document.getElementById('targetPreset1Label');
+        const preset2Label = document.getElementById('targetPreset2Label');
+        if (preset1Input) preset1Input.value = String(p1);
+        if (preset2Input) preset2Input.value = String(p2);
+        if (preset1Label) preset1Label.textContent = String(p1);
+        if (preset2Label) preset2Label.textContent = String(p2);
 
         const policy = cfg.policy || {};
         const badge = document.getElementById('cfg-badge');
@@ -454,10 +555,11 @@
       const sel = getXfSelected();
       if (sel.length === 0) {
         btn.textContent = '全部现房';
-      } else if (sel.length <= 2) {
-        btn.textContent = sel.join('、');
+        btn.title = '全部现房';
       } else {
-        btn.textContent = `已选 ${sel.length} 个小区`;
+        const names = sel.join('、');
+        btn.textContent = `已选 ${sel.length} 个小区：${names}`;
+        btn.title = `已选 ${sel.length} 个小区：${names}`;
       }
     }
     function setupXfDropdown() {
@@ -491,16 +593,11 @@
       if (!Array.isArray(data) || data.length === 0) {
         return '<div class="muted">无结果</div>';
       }
-      // 纵向：按每套组合的“最大单套面积”从大到小排序
-      function rowMax(row) {
-        const items = Array.isArray(row.result) ? row.result.filter(Boolean) : [];
-        if (items.length === 0) return -Infinity;
-        return Math.max(...items.map(it => Number(it[0]) || 0));
-      }
+      // 默认：按“浪费面积”从小到大排序
       data = [...data].sort((a, b) => {
-        const maxA = rowMax(a);
-        const maxB = rowMax(b);
-        return maxB - maxA;
+        const gapA = parseFloat(a["浪费面积"]) || 0;
+        const gapB = parseFloat(b["浪费面积"]) || 0;
+        return gapA - gapB;
       });
       const rows = data.map((row, idx) => {
         // 每行横向按面积从大到小，无论期房/现房
@@ -566,47 +663,99 @@
       rows.forEach(row => tbody.appendChild(row));
     }
 
-    function buildFloorFilterOptions() {
+    // 解析房源文本信息
+    function parseCellInfo(text) {
+      const t = (text || '').trim();
+      if (!t) return null;
+      const isQF = t.includes('(期房)');
+      const isXF = t.includes('(现房)');
+      const type = isQF ? 'qf' : (isXF ? 'xf' : null);
+
+      // 类别（A/B/C）可能出现在面积之后，如 "95.23 A(期房) ..."，因此不能只匹配开头
+      let category = null;
+      const catMatchStrict = t.match(/\b([ABC])\s*\((期房|现房)\)/);
+      if (catMatchStrict) {
+        category = catMatchStrict[1];
+      } else {
+        const catMatchLoose = t.match(/\b([ABC])\s*\(/);
+        category = catMatchLoose ? catMatchLoose[1] : null;
+      }
+
+      const buildMatch = t.match(/(\d+)\s*幢/);
+      const building = buildMatch ? parseInt(buildMatch[1], 10) : null;
+      const doorMatch = t.match(/(\d+)\s*号/);
+      const door = doorMatch ? parseInt(doorMatch[1], 10) : null;
+      const roomMatch = t.match(/(\d+)\s*室/);
+      const room = roomMatch ? parseInt(roomMatch[1], 10) : null;
+      const floor = (room && Number.isFinite(room)) ? Math.floor(room / 100) : null;
+      return { type, category, building, door, room, floor };
+    }
+
+    function buildDynamicFilterOptions() {
       const resultsEl = document.getElementById('results');
       const table = resultsEl.querySelector('table');
 
-      const qfCont = document.getElementById('qfFloorOptions');
-      const xfCont = document.getElementById('xfFloorOptions');
-      const qfBtn = document.getElementById('qfFloorDropdownBtn');
-      const xfBtn = document.getElementById('xfFloorDropdownBtn');
+      const qfFloorCont = document.getElementById('qfFloorOptions');
+      const xfFloorCont = document.getElementById('xfFloorOptions');
+      const qfCatCont = document.getElementById('qfCatOptions');
+      const xfCatCont = document.getElementById('xfCatOptions');
+      const qfBuildCont = document.getElementById('qfBuildingOptions');
+      const xfBuildCont = document.getElementById('xfBuildingOptions');
+      const qfDoorCont = document.getElementById('qfDoorOptions');
+      const xfDoorCont = document.getElementById('xfDoorOptions');
 
-      if (qfCont) qfCont.innerHTML = '';
-      if (xfCont) xfCont.innerHTML = '';
+      const qfFloorBtn = document.getElementById('qfFloorDropdownBtn');
+      const xfFloorBtn = document.getElementById('xfFloorDropdownBtn');
+      const qfCatBtn = document.getElementById('qfCatDropdownBtn');
+      const xfCatBtn = document.getElementById('xfCatDropdownBtn');
+      const qfBuildBtn = document.getElementById('qfBuildingDropdownBtn');
+      const xfBuildBtn = document.getElementById('xfBuildingDropdownBtn');
+      const qfDoorBtn = document.getElementById('qfDoorDropdownBtn');
+      const xfDoorBtn = document.getElementById('xfDoorDropdownBtn');
+
+      // 清空容器
+      [qfFloorCont, xfFloorCont, qfCatCont, xfCatCont, qfBuildCont, xfBuildCont, qfDoorCont, xfDoorCont].forEach(c => { if (c) c.innerHTML = ''; });
 
       if (!table) {
-        if (qfBtn) qfBtn.textContent = '期房楼层：不限';
-        if (xfBtn) xfBtn.textContent = '现房楼层：不限';
+        if (qfFloorBtn) qfFloorBtn.textContent = '期房楼层：不限';
+        if (xfFloorBtn) xfFloorBtn.textContent = '现房楼层：不限';
+        if (qfCatBtn) qfCatBtn.textContent = '期房类别：不限';
+        if (xfCatBtn) xfCatBtn.textContent = '现房类别：不限';
+        if (qfBuildBtn) qfBuildBtn.textContent = '期房幢号：不限';
+        if (xfBuildBtn) xfBuildBtn.textContent = '现房幢号：不限';
+        if (qfDoorBtn) qfDoorBtn.textContent = '期房门牌：不限';
+        if (xfDoorBtn) xfDoorBtn.textContent = '现房门牌：不限';
         return;
       }
 
-      const qfSet = new Set();
-      const xfSet = new Set();
+      const qfFloors = new Set();
+      const xfFloors = new Set();
+      const qfCats = new Set();
+      const xfCats = new Set();
+      const qfBuildings = new Set();
+      const xfBuildings = new Set();
+      const qfDoors = new Set();
+      const xfDoors = new Set();
+
       const trs = Array.from(table.querySelectorAll('tbody tr'));
       trs.forEach(tr => {
         for (let i = 1; i <= 4; i++) {
           const text = tr.children[i]?.textContent || '';
-          const m = text.match(/(\d+)\s*室/);
-          if (!m) continue;
-          const roomNum = parseInt(m[1], 10);
-          if (!Number.isFinite(roomNum)) continue;
-          const floor = Math.floor(roomNum / 100);
-          if (floor <= 0) continue;
-          if (text.includes('(期房)')) {
-            qfSet.add(floor);
-          } else if (/\([^)]+\)/.test(text)) {
-            // 现房标签显示为括号包含小区名称
-            xfSet.add(floor);
+          const info = parseCellInfo(text);
+          if (!info || !info.type) continue;
+          if (info.type === 'qf') {
+            if (info.floor && info.floor > 0) qfFloors.add(info.floor);
+            if (info.category) qfCats.add(info.category);
+            if (Number.isFinite(info.building)) qfBuildings.add(info.building);
+            if (Number.isFinite(info.door)) qfDoors.add(info.door);
+          } else if (info.type === 'xf') {
+            if (info.floor && info.floor > 0) xfFloors.add(info.floor);
+            if (info.category) xfCats.add(info.category);
+            if (Number.isFinite(info.building)) xfBuildings.add(info.building);
+            if (Number.isFinite(info.door)) xfDoors.add(info.door);
           }
         }
       });
-
-      const qFloors = Array.from(qfSet).sort((a, b) => a - b);
-      const xFloors = Array.from(xfSet).sort((a, b) => a - b);
 
       const makeOptionRow = (idPrefix, value) => {
         const id = idPrefix + '_' + value;
@@ -624,67 +773,103 @@
         return row;
       };
 
-      if (qfCont) {
-        qFloors.forEach(f => qfCont.appendChild(makeOptionRow('qfFloor', f)));
-      }
-      if (xfCont) {
-        xFloors.forEach(f => xfCont.appendChild(makeOptionRow('xfFloor', f)));
-      }
+      // 构建选项
+      const qFloors = Array.from(qfFloors).sort((a, b) => a - b);
+      const xFloors = Array.from(xfFloors).sort((a, b) => a - b);
+      const qCats = Array.from(qfCats).sort();
+      const xCats = Array.from(xfCats).sort();
+      const qBuilds = Array.from(qfBuildings).sort((a, b) => a - b);
+      const xBuilds = Array.from(xfBuildings).sort((a, b) => a - b);
+      const qDoorsArr = Array.from(qfDoors).sort((a, b) => a - b);
+      const xDoorsArr = Array.from(xfDoors).sort((a, b) => a - b);
+
+      if (qfFloorCont) qFloors.forEach(f => qfFloorCont.appendChild(makeOptionRow('qfFloor', f)));
+      if (xfFloorCont) xFloors.forEach(f => xfFloorCont.appendChild(makeOptionRow('xfFloor', f)));
+      if (qfCatCont) qCats.forEach(c => qfCatCont.appendChild(makeOptionRow('qfCat', c)));
+      if (xfCatCont) xCats.forEach(c => xfCatCont.appendChild(makeOptionRow('xfCat', c)));
+      if (qfBuildCont) qBuilds.forEach(b => qfBuildCont.appendChild(makeOptionRow('qfBuild', b)));
+      if (xfBuildCont) xBuilds.forEach(b => xfBuildCont.appendChild(makeOptionRow('xfBuild', b)));
+      if (qfDoorCont) qDoorsArr.forEach(d => qfDoorCont.appendChild(makeOptionRow('qfDoor', d)));
+      if (xfDoorCont) xDoorsArr.forEach(d => xfDoorCont.appendChild(makeOptionRow('xfDoor', d)));
 
       // 下拉开关与外部点击关闭
-      const qfDD = document.getElementById('qfFloorDropdown');
-      const qfMenu = document.getElementById('qfFloorDropdownMenu');
-      const xfDD = document.getElementById('xfFloorDropdown');
-      const xfMenu = document.getElementById('xfFloorDropdownMenu');
+      function setupDropdown(ddId, btnId, menuId) {
+        const dd = document.getElementById(ddId);
+        const btn = document.getElementById(btnId);
+        const menu = document.getElementById(menuId);
+        if (btn) btn.onclick = () => { if (menu) menu.style.display = menu.style.display === 'none' ? '' : 'none'; };
+        document.addEventListener('click', (e) => {
+          if (dd && !dd.contains(e.target)) { if (menu) menu.style.display = 'none'; }
+        });
+      }
 
-      if (qfBtn) qfBtn.onclick = () => { if (qfMenu) qfMenu.style.display = qfMenu.style.display === 'none' ? '' : 'none'; };
-      if (xfBtn) xfBtn.onclick = () => { if (xfMenu) xfMenu.style.display = xfMenu.style.display === 'none' ? '' : 'none'; };
-
-      document.addEventListener('click', (e) => {
-        if (qfDD && !qfDD.contains(e.target)) { if (qfMenu) qfMenu.style.display = 'none'; }
-        if (xfDD && !xfDD.contains(e.target)) { if (xfMenu) xfMenu.style.display = 'none'; }
-      });
+      setupDropdown('qfFloorDropdown', 'qfFloorDropdownBtn', 'qfFloorDropdownMenu');
+      setupDropdown('xfFloorDropdown', 'xfFloorDropdownBtn', 'xfFloorDropdownMenu');
+      setupDropdown('qfCatDropdown', 'qfCatDropdownBtn', 'qfCatDropdownMenu');
+      setupDropdown('xfCatDropdown', 'xfCatDropdownBtn', 'xfCatDropdownMenu');
+      setupDropdown('qfBuildingDropdown', 'qfBuildingDropdownBtn', 'qfBuildingDropdownMenu');
+      setupDropdown('xfBuildingDropdown', 'xfBuildingDropdownBtn', 'xfBuildingDropdownMenu');
+      setupDropdown('qfDoorDropdown', 'qfDoorDropdownBtn', 'qfDoorDropdownMenu');
+      setupDropdown('xfDoorDropdown', 'xfDoorDropdownBtn', 'xfDoorDropdownMenu');
 
       // 全选/清空按钮
-      const qfSelectAll = document.getElementById('qfFloorSelectAll');
-      const qfClearAll = document.getElementById('qfFloorClearAll');
-      const xfSelectAll = document.getElementById('xfFloorSelectAll');
-      const xfClearAll = document.getElementById('xfFloorClearAll');
-
-      function updateFloorBtnLabel() {
-        const qSel = Array.from(document.querySelectorAll('#qfFloorOptions input[type="checkbox"]:checked')).map(b => b.value);
-        const xSel = Array.from(document.querySelectorAll('#xfFloorOptions input[type="checkbox"]:checked')).map(b => b.value);
-        if (qfBtn) qfBtn.textContent = qSel.length ? ('期房楼层：' + qSel.join('、')) : '期房楼层：不限';
-        if (xfBtn) xfBtn.textContent = xSel.length ? ('现房楼层：' + xSel.join('、')) : '现房楼层：不限';
-      }
-
-      function setAllFloorSelected(containerSelector, flag) {
+      function setAllSelected(containerSelector, flag) {
         const boxes = Array.from(document.querySelectorAll(containerSelector + ' input[type="checkbox"]'));
         boxes.forEach(b => { b.checked = !!flag; });
-        updateFloorBtnLabel();
+        updateDropdownBtnLabels();
         applyFilter();
       }
+      document.getElementById('qfFloorSelectAll')?.addEventListener('click', () => setAllSelected('#qfFloorOptions', true));
+      document.getElementById('qfFloorClearAll')?.addEventListener('click', () => setAllSelected('#qfFloorOptions', false));
+      document.getElementById('xfFloorSelectAll')?.addEventListener('click', () => setAllSelected('#xfFloorOptions', true));
+      document.getElementById('xfFloorClearAll')?.addEventListener('click', () => setAllSelected('#xfFloorOptions', false));
 
-      if (qfSelectAll) qfSelectAll.onclick = () => setAllFloorSelected('#qfFloorOptions', true);
-      if (qfClearAll) qfClearAll.onclick = () => setAllFloorSelected('#qfFloorOptions', false);
-      if (xfSelectAll) xfSelectAll.onclick = () => setAllFloorSelected('#xfFloorOptions', true);
-      if (xfClearAll) xfClearAll.onclick = () => setAllFloorSelected('#xfFloorOptions', false);
+      document.getElementById('qfCatSelectAll')?.addEventListener('click', () => setAllSelected('#qfCatOptions', true));
+      document.getElementById('qfCatClearAll')?.addEventListener('click', () => setAllSelected('#qfCatOptions', false));
+      document.getElementById('xfCatSelectAll')?.addEventListener('click', () => setAllSelected('#xfCatOptions', true));
+      document.getElementById('xfCatClearAll')?.addEventListener('click', () => setAllSelected('#xfCatOptions', false));
 
-      // 监听选项变化：更新按钮文案并应用筛选
-      document.getElementById('qfFloorOptions')?.addEventListener('change', (e) => {
-        if (e.target && e.target.matches('input[type="checkbox"]')) {
-          updateFloorBtnLabel();
-          applyFilter();
-        }
+      document.getElementById('qfBuildingSelectAll')?.addEventListener('click', () => setAllSelected('#qfBuildingOptions', true));
+      document.getElementById('qfBuildingClearAll')?.addEventListener('click', () => setAllSelected('#qfBuildingOptions', false));
+      document.getElementById('xfBuildingSelectAll')?.addEventListener('click', () => setAllSelected('#xfBuildingOptions', true));
+      document.getElementById('xfBuildingClearAll')?.addEventListener('click', () => setAllSelected('#xfBuildingOptions', false));
+
+      document.getElementById('qfDoorSelectAll')?.addEventListener('click', () => setAllSelected('#qfDoorOptions', true));
+      document.getElementById('qfDoorClearAll')?.addEventListener('click', () => setAllSelected('#qfDoorOptions', false));
+      document.getElementById('xfDoorSelectAll')?.addEventListener('click', () => setAllSelected('#xfDoorOptions', true));
+      document.getElementById('xfDoorClearAll')?.addEventListener('click', () => setAllSelected('#xfDoorOptions', false));
+
+      // 选项变化事件
+      ['qfFloorOptions', 'xfFloorOptions', 'qfCatOptions', 'xfCatOptions', 'qfBuildingOptions', 'xfBuildingOptions', 'qfDoorOptions', 'xfDoorOptions'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', (e) => {
+          if (e.target && e.target.matches('input[type="checkbox"]')) {
+            updateDropdownBtnLabels();
+            applyFilter();
+          }
+        });
       });
-      document.getElementById('xfFloorOptions')?.addEventListener('change', (e) => {
-        if (e.target && e.target.matches('input[type="checkbox"]')) {
-          updateFloorBtnLabel();
-          applyFilter();
-        }
-      });
 
-      updateFloorBtnLabel();
+      function updateDropdownBtnLabels() {
+        const qSelFloors = Array.from(document.querySelectorAll('#qfFloorOptions input[type="checkbox"]:checked')).map(b => b.value);
+        const xSelFloors = Array.from(document.querySelectorAll('#xfFloorOptions input[type="checkbox"]:checked')).map(b => b.value);
+        const qSelCats = Array.from(document.querySelectorAll('#qfCatOptions input[type="checkbox"]:checked')).map(b => b.value);
+        const xSelCats = Array.from(document.querySelectorAll('#xfCatOptions input[type="checkbox"]:checked')).map(b => b.value);
+        const qSelBuilds = Array.from(document.querySelectorAll('#qfBuildingOptions input[type="checkbox"]:checked')).map(b => b.value);
+        const xSelBuilds = Array.from(document.querySelectorAll('#xfBuildingOptions input[type="checkbox"]:checked')).map(b => b.value);
+        const qSelDoors = Array.from(document.querySelectorAll('#qfDoorOptions input[type="checkbox"]:checked')).map(b => b.value);
+        const xSelDoors = Array.from(document.querySelectorAll('#xfDoorOptions input[type="checkbox"]:checked')).map(b => b.value);
+
+        if (qfFloorBtn) qfFloorBtn.textContent = qSelFloors.length ? ('期房楼层：' + qSelFloors.join('、')) : '期房楼层：不限';
+        if (xfFloorBtn) xfFloorBtn.textContent = xSelFloors.length ? ('现房楼层：' + xSelFloors.join('、')) : '现房楼层：不限';
+        if (qfCatBtn) qfCatBtn.textContent = qSelCats.length ? ('期房类别：' + qSelCats.join('、')) : '期房类别：不限';
+        if (xfCatBtn) xfCatBtn.textContent = xSelCats.length ? ('现房类别：' + xSelCats.join('、')) : '现房类别：不限';
+        if (qfBuildBtn) qfBuildBtn.textContent = qSelBuilds.length ? ('期房幢号：' + qSelBuilds.join('、')) : '期房幢号：不限';
+        if (xfBuildBtn) xfBuildBtn.textContent = xSelBuilds.length ? ('现房幢号：' + xSelBuilds.join('、')) : '现房幢号：不限';
+        if (qfDoorBtn) qfDoorBtn.textContent = qSelDoors.length ? ('期房门牌：' + qSelDoors.join('、')) : '期房门牌：不限';
+        if (xfDoorBtn) xfDoorBtn.textContent = xSelDoors.length ? ('现房门牌：' + xSelDoors.join('、')) : '现房门牌：不限';
+      }
+
+      updateDropdownBtnLabels();
     }
 
     function applyFilter() {
@@ -700,10 +885,21 @@
       const struct = (document.getElementById('structureFilter')?.value) || 'none';
       const qSel = (document.getElementById('qfCountFilter')?.value) || 'any';
       const xSel = (document.getElementById('xfCountFilter')?.value) || 'any';
-      const qFloorSel = Array.from(document.querySelectorAll('#qfFloorOptions input[type="checkbox"]:checked'))
-        .map(cb => Number(cb.value)).filter(n => Number.isFinite(n));
-      const xfFloorSel = Array.from(document.querySelectorAll('#xfFloorOptions input[type="checkbox"]:checked'))
-        .map(cb => Number(cb.value)).filter(n => Number.isFinite(n));
+
+      // 收集下拉多选值
+      function getCheckedValues(selector, toNumber = false) {
+        const vals = Array.from(document.querySelectorAll(selector + ' input[type="checkbox"]:checked')).map(b => b.value);
+        if (!toNumber) return vals;
+        return vals.map(v => Number(v)).filter(n => Number.isFinite(n));
+      }
+      const qFloorSel = getCheckedValues('#qfFloorOptions', true);
+      const xfFloorSel = getCheckedValues('#xfFloorOptions', true);
+      const qCatSel = getCheckedValues('#qfCatOptions', false);
+      const xfCatSel = getCheckedValues('#xfCatOptions', false);
+      const qBuildSel = getCheckedValues('#qfBuildingOptions', true);
+      const xfBuildSel = getCheckedValues('#xfBuildingOptions', true);
+      const qDoorSel = getCheckedValues('#qfDoorOptions', true);
+      const xfDoorSel = getCheckedValues('#xfDoorOptions', true);
 
       function categorizeArea(a) {
         if (!Number.isFinite(a)) return '空';
@@ -751,46 +947,51 @@
         const nums = [1, 2, 3, 4].map(i => parseFloat(tr.children[i]?.textContent || '')).filter(n => Number.isFinite(n));
         const cats = nums.map(categorizeArea);
         const showStruct = struct === 'none' ? true : matchesStructurePattern(cats, struct);
-        // 统计当前行期房/现房数量
-        const counts = [1, 2, 3, 4].reduce((acc, i) => {
-          const t = tr.children[i]?.textContent || '';
-          if (t.includes('(期房)')) {
-            acc.q++;
-          } else if (/\([^)]+\)/.test(t)) {
-            // 现房标签现在显示为小区名称括号，如 "(银香苑)"
-            acc.x++;
-          }
+
+        // 统计当前行期房/现房数量，并收集详细属性
+        const infoItems = [1, 2, 3, 4].map(i => parseCellInfo(tr.children[i]?.textContent || '')).filter(Boolean);
+        const counts = infoItems.reduce((acc, it) => {
+          if (it.type === 'qf') acc.q++;
+          else if (it.type === 'xf') acc.x++;
           return acc;
         }, { q: 0, x: 0 });
         const showQ = qSel === 'any' ? true : counts.q === Number(qSel);
         const showX = xSel === 'any' ? true : counts.x === Number(xSel);
 
         // 楼层筛选（多选）：分别提取期房与现房楼层，任一命中所选集合即可
-        const qFloors = [];
-        const xFloors = [];
-        for (let i = 1; i <= 4; i++) {
-          const t = tr.children[i]?.textContent || '';
-          const m = t.match(/(\d+)\s*室/);
-          if (!m) continue;
-          const roomNum = parseInt(m[1], 10);
-          if (!Number.isFinite(roomNum)) continue;
-          const floor = Math.floor(roomNum / 100);
-          if (floor <= 0) continue;
-          if (t.includes('(期房)')) {
-            qFloors.push(floor);
-          } else if (/\([^)]+\)/.test(t)) {
-            xFloors.push(floor);
-          }
-        }
+        const qFloors = infoItems.filter(it => it.type === 'qf' && Number.isFinite(it.floor)).map(it => it.floor);
+        const xFloors = infoItems.filter(it => it.type === 'xf' && Number.isFinite(it.floor)).map(it => it.floor);
         const showQF = qFloorSel.length === 0 ? true : qFloors.some(f => qFloorSel.includes(f));
         const showXF = xfFloorSel.length === 0 ? true : xFloors.some(f => xfFloorSel.includes(f));
         const showF = showQF && showXF;
 
-        const show = showKeyword && showStruct && showQ && showX && showF;
+        // 类别 A/B/C 筛选
+        const qCatsRow = infoItems.filter(it => it.type === 'qf' && it.category).map(it => it.category);
+        const xCatsRow = infoItems.filter(it => it.type === 'xf' && it.category).map(it => it.category);
+        const showQCat = qCatSel.length === 0 ? true : qCatsRow.some(c => qCatSel.includes(c));
+        const showXCat = xfCatSel.length === 0 ? true : xCatsRow.some(c => xfCatSel.includes(c));
+
+        // 幢号筛选
+        const qBuildsRow = infoItems.filter(it => it.type === 'qf' && Number.isFinite(it.building)).map(it => it.building);
+        const xBuildsRow = infoItems.filter(it => it.type === 'xf' && Number.isFinite(it.building)).map(it => it.building);
+        const showQBuild = qBuildSel.length === 0 ? true : qBuildsRow.some(b => qBuildSel.includes(b));
+        const showXBuild = xfBuildSel.length === 0 ? true : xBuildsRow.some(b => xfBuildSel.includes(b));
+
+        // 门牌号筛选
+        const qDoorsRow = infoItems.filter(it => it.type === 'qf' && Number.isFinite(it.door)).map(it => it.door);
+        const xDoorsRow = infoItems.filter(it => it.type === 'xf' && Number.isFinite(it.door)).map(it => it.door);
+        const showQDoor = qDoorSel.length === 0 ? true : qDoorsRow.some(d => qDoorSel.includes(d));
+        const showXDoor = xfDoorSel.length === 0 ? true : xDoorsRow.some(d => xfDoorSel.includes(d));
+
+        const show = showKeyword && showStruct && showQ && showX && showF && showQCat && showXCat && showQBuild && showXBuild && showQDoor && showXDoor;
         tr.style.display = show ? '' : 'none';
         if (show) visibleCount++;
       });
       countEl.textContent = '共 ' + visibleCount + ' 条结果';
+      // 始终保持按“浪费面积”从小到大排序
+      window.__sortKey = 'gap';
+      window.__sortDir = 'asc';
+      sortTableBy('gap', 'asc');
     }
 
     function bindTableEnhancements() {
@@ -820,7 +1021,12 @@
       msg.textContent = '';
       countEl.textContent = '';
 
-      const target = document.getElementById('target').value;
+      const targetNum = getSelectedTarget();
+      if (!Number.isFinite(targetNum) || targetNum <= 0) {
+        msg.textContent = '请选择预设目标面积或输入有效的自定义面积';
+        return;
+      }
+
       const topK = document.getElementById('topK').value;
       const source = document.getElementById('source').value;
       const minArea = document.getElementById('minArea').value;
@@ -828,7 +1034,7 @@
       const xfSel = getXfSelected();
 
       const qs = buildQuery({
-        target, topK, source,
+        target: targetNum, topK, source,
         minArea, maxArea,
         xfCommunities: xfSel
       });
@@ -845,7 +1051,7 @@
         }
         resultsEl.innerHTML = renderTable(data);
         bindTableEnhancements();
-        buildFloorFilterOptions();
+        buildDynamicFilterOptions();
         applyFilter();
         updateExportButtonState();
         setLoading(false);
@@ -860,6 +1066,34 @@
       if (!btn) return;
       const table = document.getElementById('results').querySelector('table');
       btn.disabled = !table;
+    }
+
+    // 目标面积选择与读取
+    function getSelectedTarget() {
+      const r1 = document.getElementById('targetPreset1');
+      const r2 = document.getElementById('targetPreset2');
+      const rc = document.getElementById('targetCustomRadio');
+      const custom = document.getElementById('targetCustom');
+      if (rc && rc.checked) {
+        const v = Number(custom?.value);
+        if (Number.isFinite(v) && v > 0) return v;
+        return null;
+      }
+      if (r1 && r1.checked) return Number(r1.value);
+      if (r2 && r2.checked) return Number(r2.value);
+      return null;
+    }
+    function setupTargetChoice() {
+      const r1 = document.getElementById('targetPreset1');
+      const r2 = document.getElementById('targetPreset2');
+      const rc = document.getElementById('targetCustomRadio');
+      const custom = document.getElementById('targetCustom');
+      function update() {
+        const showCustom = rc && rc.checked;
+        if (custom) custom.style.display = showCustom ? '' : 'none';
+      }
+      [r1, r2, rc].forEach(el => el && el.addEventListener('change', update));
+      update();
     }
 
     function setLoading(flag) {
@@ -881,14 +1115,14 @@
       if (typeof XLSX === 'undefined') {
         if (msg) msg.textContent = '前端 XLSX 库未加载，正在使用服务端导出…';
         // 从表单取当前参数，构建服务端导出请求
-        const target = document.getElementById('target').value;
+        const targetNum = getSelectedTarget();
         const topK = document.getElementById('topK').value;
         const source = document.getElementById('source').value;
         const minArea = document.getElementById('minArea').value;
         const maxArea = document.getElementById('maxArea').value;
         const xfSel = getXfSelected();
         const qs = buildQuery({
-          target, topK, source,
+          target: targetNum, topK, source,
           minArea, maxArea,
           xfCommunities: xfSel
         });
@@ -914,7 +1148,8 @@
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '筛选结果');
-      const targetVal = (document.getElementById('target')?.value || '').trim();
+      const targetNum = getSelectedTarget();
+      const targetVal = Number.isFinite(targetNum) ? String(targetNum) : '';
       const fname = targetVal ? ('results-' + targetVal + '.xlsx') : 'results.xlsx';
       XLSX.writeFile(wb, fname);
     }
@@ -934,17 +1169,34 @@
       const xSel = document.getElementById('xfCountFilter');
       if (qSel) qSel.value = 'any';
       if (xSel) xSel.value = 'any';
-      // 清空楼层多选（期房/现房）
-      const qfBoxes = Array.from(document.querySelectorAll('#qfFloorOptions input[type="checkbox"]'));
-      qfBoxes.forEach(b => { b.checked = false; });
-      const xfBoxes = Array.from(document.querySelectorAll('#xfFloorOptions input[type="checkbox"]'));
-      xfBoxes.forEach(b => { b.checked = false; });
-      const qfBtn = document.getElementById('qfFloorDropdownBtn');
-      if (qfBtn) qfBtn.textContent = '期房楼层：不限';
-      const xfBtn = document.getElementById('xfFloorDropdownBtn');
-      if (xfBtn) xfBtn.textContent = '现房楼层：不限';
+      // 清空楼层/类别/幢号/门牌多选（期房/现房）
+      const toClearSelectors = [
+        '#qfFloorOptions', '#xfFloorOptions',
+        '#qfCatOptions', '#xfCatOptions',
+        '#qfBuildingOptions', '#xfBuildingOptions',
+        '#qfDoorOptions', '#xfDoorOptions'
+      ];
+      toClearSelectors.forEach(sel => {
+        const boxes = Array.from(document.querySelectorAll(sel + ' input[type="checkbox"]'));
+        boxes.forEach(b => { b.checked = false; });
+      });
+      const labelDefaults = [
+        ['qfFloorDropdownBtn', '期房楼层：不限'],
+        ['xfFloorDropdownBtn', '现房楼层：不限'],
+        ['qfCatDropdownBtn', '期房类别：不限'],
+        ['xfCatDropdownBtn', '现房类别：不限'],
+        ['qfBuildingDropdownBtn', '期房幢号：不限'],
+        ['xfBuildingDropdownBtn', '现房幢号：不限'],
+        ['qfDoorDropdownBtn', '期房门牌：不限'],
+        ['xfDoorDropdownBtn', '现房门牌：不限']
+      ];
+      labelDefaults.forEach(([id, text]) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.textContent = text;
+      });
       applyFilter();
     });
+    setupTargetChoice();
     loadConfig();
     (async function loadCommunities() {
       try {
@@ -954,7 +1206,7 @@
         const cont = document.getElementById('xfOptions');
         if (cont && Array.isArray(list)) {
           cont.innerHTML = '';
-          const defaults = new Set(['辰香苑','银香苑','景华新苑']);
+          const defaults = new Set(['辰香苑','景香苑','景华新苑']);
           list.forEach((name, idx) => {
             const id = 'xfopt_' + idx;
             const row = document.createElement('div');
