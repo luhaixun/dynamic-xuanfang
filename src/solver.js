@@ -58,6 +58,7 @@ function readJsonRowsCached(filePath) {
   const derivedCache = new Map();
   /**
    * 从原始行提取 {area, type}
+   * 注意：现在始终包含 D 类型，以支持赠送面积功能
    */
   function extractAreaTypeRows(rows, typeKey) {
     const out = [];
@@ -65,7 +66,7 @@ function readJsonRowsCached(filePath) {
       const area = Number(r["建筑面积"]);
       const type = normalizeType(r[typeKey]);
       if (!Number.isFinite(area) || area <= 0) continue;
-      if (!type || !["A", "B", "C"].includes(type)) continue;
+      if (!type || !["A", "B", "C", "D"].includes(type)) continue;
       const buildingNo = r["幢号"] != null ? String(r["幢号"]).trim() : '';
       const doorNo = r["门牌号"] != null ? String(r["门牌号"]).trim() : '';
       const roomNo = r["室号"] != null ? String(r["室号"]).trim() : '';
@@ -79,7 +80,7 @@ function readJsonRowsCached(filePath) {
       const area = Number(r["建筑面积"]);
       const type = normalizeType(r[typeKey]);
       if (!Number.isFinite(area) || area <= 0) continue;
-      if (!type || !["A", "B", "C"].includes(type)) continue;
+      if (!type || !["A", "B", "C", "D"].includes(type)) continue;
       const community = communityKey ? (r[communityKey] != null ? String(r[communityKey]).trim() : '') : undefined;
       const buildingNo = r["幢号"] != null ? String(r["幢号"]).trim() : '';
       const doorNo = r["门牌号"] != null ? String(r["门牌号"]).trim() : '';
@@ -90,9 +91,9 @@ function readJsonRowsCached(filePath) {
     return out;
   }
   function groupAndSortByType(areaTypeRows) {
-    const byType = { A: [], B: [], C: [] };
+    const byType = { A: [], B: [], C: [], D: [] };
     for (const x of areaTypeRows) byType[x.type].push(x);
-    for (const t of ["A", "B", "C"]) byType[t].sort((p, q) => p.area - q.area);
+    for (const t of ["A", "B", "C", "D"]) byType[t].sort((p, q) => p.area - q.area);
     return byType;
   }
   function getDerivedGroupedSorted(key, rows, typeKey) {
@@ -138,7 +139,7 @@ function readJsonRowsCached(filePath) {
  *
  * 约束回顾：
  *  - 只能选 3 或 4 条
- *  - 必须覆盖 A/B/C（各至少 1 条）
+ *  - 必须覆盖 A/B/C（各至少 1 条）或启用赠送时 A/B 及 C或D
  *  - 4 条时，仅允许某一类重复一次（两条同类 + 另外两类各一条）
  *  - sum ≤ target，且尽量接近 target
  *  - 至少包含 1 条来自 B.txt（xianfang）
@@ -146,13 +147,16 @@ function readJsonRowsCached(filePath) {
  * 返回：
  *  - 按 sum 降序的 TopK 结果，每项包含 { result, sum, target, gap }
  */
-function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, disallowDominant, dominantMoreThan, othersLessThan) {
+function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, disallowDominant, dominantMoreThan, othersLessThan, giftArea = 0) {
   // 规整 topK
   topK = Math.max(1, Math.floor(Number(topK) || 1));
   const targetNum = Number(target);
+  const enableGift = Number(giftArea) > 0;
 
-  // 过滤 + 归一化 + 仅允许 A/B/C（排除 D）
+  // 过滤 + 归一化 + 根据赠送面积决定是否包含 D 类型
   const items = [];
+  const allowedTypes = enableGift ? ["A", "B", "D"] : ["A", "B", "C"];
+  
   for (const it of candidates) {
     let area, type, srcFile, community, buildingNo, roomNo, doorNo;
     if (Array.isArray(it)) {
@@ -173,27 +177,37 @@ function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, dis
     }
 
     if (!Number.isFinite(area) || area <= 0) continue;
-    if (!type || !["A", "B", "C"].includes(type)) continue;
+    if (!type || !allowedTypes.includes(type)) continue;
     if (srcFile !== fileAName && srcFile !== fileBName) continue;
 
     items.push({ area, type, srcFile, community, buildingNo, roomNo, doorNo });
   }
 
-  // 按类型分组
-  const byType = { A: [], B: [], C: [] };
+  // 按类型分组（包含 D 类型如果启用赠送面积）
+  const byType = enableGift 
+    ? { A: [], B: [], C: [], D: [] }
+    : { A: [], B: [], C: [] };
   for (const x of items) byType[x.type].push(x);
 
   // 为后续二分查找按 area 升序排序
-  for (const t of ["A", "B", "C"]) {
+  const typesToSort = enableGift ? ["A", "B", "C", "D"] : ["A", "B", "C"];
+  for (const t of typesToSort) {
     byType[t].sort((p, q) => p.area - q.area);
   }
   // 任何单条面积超过 target 都不可能参与合法组合，提前剔除
-  for (const t of ["A", "B", "C"]) {
+  for (const t of typesToSort) {
     byType[t] = byType[t].filter((x) => x.area <= targetNum);
   }
 
-  // 若任一类型缺失，则无解
-  if (!byType.A.length || !byType.B.length || !byType.C.length) return [];
+  // 若必需类型缺失，则无解
+  // 未启用赠送：必须有 A、B、C
+  // 启用赠送：必须有 A、B，且至少有 C 或 D 其中之一
+  if (!enableGift) {
+    if (!byType.A.length || !byType.B.length || !byType.C.length) return [];
+  } else {
+    if (!byType.A.length || !byType.B.length) return [];
+    if (!byType.C.length && !byType.D.length) return [];
+  }
 
   // TopK 容器与去重集合
   const topList = [];
@@ -229,39 +243,66 @@ function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, dis
     pushTopK(topList, seenKeys, { sum, picked }, topK);
   }
 
-  // 3 条：A + B + C（降序遍历 + 上界剪枝）
-  const maxCarea = byType.C.length ? byType.C[byType.C.length - 1].area : -Infinity;
-  for (let ia = byType.A.length - 1; ia >= 0; ia--) {
-    const a = byType.A[ia];
-    for (let ib = byType.B.length - 1; ib >= 0; ib--) {
-      const b = byType.B[ib];
-      const partial = a.area + b.area;
-      // 降序遍历时，若超 target，继续尝试更小的 b（不能 break）
-      if (partial > targetNum) continue;
+  // 3 条组合
+  if (!enableGift) {
+    // 未启用赠送：A + B + C
+    const maxCarea = byType.C.length ? byType.C[byType.C.length - 1].area : -Infinity;
+    for (let ia = byType.A.length - 1; ia >= 0; ia--) {
+      const a = byType.A[ia];
+      for (let ib = byType.B.length - 1; ib >= 0; ib--) {
+        const b = byType.B[ib];
+        const partial = a.area + b.area;
+        if (partial > targetNum) continue;
 
-      // TopK 已满时，若即使加上 C 的最大值也无法超过当前最小入榜值，则直接结束该 b 循环
-      if (topList.length >= topK) {
-        const minKeep = topList[topList.length - 1].sum;
-        if (partial + maxCarea <= minKeep) break; // 后续更小的 b 只会更小，无法提升
+        if (topList.length >= topK) {
+          const minKeep = topList[topList.length - 1].sum;
+          if (partial + maxCarea <= minKeep) break;
+        }
+
+        const c = pickBestUnderOrEqual(byType.C, targetNum - partial);
+        if (c) tryCollect([a, b, c], partial + c.area);
       }
+    }
+  } else {
+    // 启用赠送：A + B + C 或 A + B + D
+    const maxCarea = byType.C.length ? byType.C[byType.C.length - 1].area : -Infinity;
+    const maxDarea = byType.D.length ? byType.D[byType.D.length - 1].area : -Infinity;
+    
+    for (let ia = byType.A.length - 1; ia >= 0; ia--) {
+      const a = byType.A[ia];
+      for (let ib = byType.B.length - 1; ib >= 0; ib--) {
+        const b = byType.B[ib];
+        const partial = a.area + b.area;
+        if (partial > targetNum) continue;
 
-      const c = pickBestUnderOrEqual(byType.C, targetNum - partial);
-      if (c) tryCollect([a, b, c], partial + c.area);
+        if (topList.length >= topK) {
+          const minKeep = topList[topList.length - 1].sum;
+          const maxThird = Math.max(maxCarea, maxDarea);
+          if (partial + maxThird <= minKeep) break;
+        }
+
+        // 尝试 A + B + C
+        if (byType.C.length > 0) {
+          const c = pickBestUnderOrEqual(byType.C, targetNum - partial);
+          if (c) tryCollect([a, b, c], partial + c.area);
+        }
+        
+        // 尝试 A + B + D
+        if (byType.D.length > 0) {
+          const d = pickBestUnderOrEqual(byType.D, targetNum - partial);
+          if (d) tryCollect([a, b, d], partial + d.area);
+        }
+      }
     }
   }
 
   // 4 条：某一类重复一次
-  // 形态：
-  //  - A×2 + B + C
-  //  - B×2 + A + C
-  //  - C×2 + A + B
   function enumFour(X, Y, Z) {
     // 降序遍历 + 上界剪枝
     const maxZarea = Z.length ? Z[Z.length - 1].area : -Infinity;
     for (let i = X.length - 1; i >= 1; i--) {
       for (let j = i - 1; j >= 0; j--) {
         const sumXX = X[i].area + X[j].area;
-        // 降序时若超 target，尝试更小的 j（继续）
         if (sumXX > targetNum) continue;
 
         for (let iy = Y.length - 1; iy >= 0; iy--) {
@@ -271,7 +312,7 @@ function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, dis
 
           if (topList.length >= topK) {
             const minKeep = topList[topList.length - 1].sum;
-            if (partial + maxZarea <= minKeep) break; // 后续更小的 y 无法超过最小入榜
+            if (partial + maxZarea <= minKeep) break;
           }
 
           const z = pickBestUnderOrEqual(Z, targetNum - partial);
@@ -281,9 +322,22 @@ function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, dis
     }
   }
 
-  enumFour(byType.A, byType.B, byType.C);
-  enumFour(byType.B, byType.A, byType.C);
-  enumFour(byType.C, byType.A, byType.B);
+  if (!enableGift) {
+    // 未启用赠送：A×2+B+C, B×2+A+C, C×2+A+B
+    enumFour(byType.A, byType.B, byType.C);
+    enumFour(byType.B, byType.A, byType.C);
+    enumFour(byType.C, byType.A, byType.B);
+  } else {
+    // 启用赠送：A×2+B+C, A×2+B+D, B×2+A+C, B×2+A+D
+    if (byType.C.length > 0) {
+      enumFour(byType.A, byType.B, byType.C);
+      enumFour(byType.B, byType.A, byType.C);
+    }
+    if (byType.D.length > 0) {
+      enumFour(byType.A, byType.B, byType.D);
+      enumFour(byType.B, byType.A, byType.D);
+    }
+  }
 
   // 输出格式化
   return topList.map(({ sum, picked }) => {
@@ -331,6 +385,7 @@ function solveTopK(
     minArea,
     maxArea,
     xfCommunities,
+    giftArea,
   } = {}
 ) {
   // 读取配置文件，优先使用传入参数；未传入时使用配置文件默认值
@@ -362,13 +417,14 @@ function solveTopK(
   const fileBName = FILE_B_NAME;
 
   // 从 Excel 行构造成 [area, type] 列表（保留所有列于内存 data.js）
+  // 注意：现在包含 D 类型以支持赠送面积功能
   function toAreaTypeRows(rows, typeKey) {
     const out = [];
     for (const r of rows) {
       const area = Number(r["建筑面积"]);
       const type = normalizeType(r[typeKey]);
       if (!Number.isFinite(area) || area <= 0) continue;
-      if (!type || !["A", "B", "C"].includes(type)) continue;
+      if (!type || !["A", "B", "C", "D"].includes(type)) continue;
       out.push({ area, type, row: r });
     }
     return out;
@@ -447,13 +503,15 @@ function solveTopK(
   const AfltA = sliceRange(Agroup.A, lower, upperA);
   const AfltB = sliceRange(Agroup.B, lower, upperA);
   const AfltC = sliceRange(Agroup.C, lower, upperA);
+  const AfltD = sliceRange(Agroup.D, lower, upperA);
   const BfltA = sliceRange(Bgroup.A, lower, upperB);
   const BfltB = sliceRange(Bgroup.B, lower, upperB);
   const BfltC = sliceRange(Bgroup.C, lower, upperB);
+  const BfltD = sliceRange(Bgroup.D, lower, upperB);
   
   // 合并类型并附加来源
-  const A = [...AfltA, ...AfltB, ...AfltC].map(({ area, type, buildingNo, roomNo, doorNo }) => ({ area, type, srcFile: fileAName, buildingNo, roomNo, doorNo }));
-  const B = [...BfltA, ...BfltB, ...BfltC].map(({ area, type, community, buildingNo, roomNo, doorNo }) => ({ area, type, srcFile: fileBName, community, buildingNo, roomNo, doorNo }));
+  const A = [...AfltA, ...AfltB, ...AfltC, ...AfltD].map(({ area, type, buildingNo, roomNo, doorNo }) => ({ area, type, srcFile: fileAName, buildingNo, roomNo, doorNo }));
+  const B = [...BfltA, ...BfltB, ...BfltC, ...BfltD].map(({ area, type, community, buildingNo, roomNo, doorNo }) => ({ area, type, srcFile: fileBName, community, buildingNo, roomNo, doorNo }));
 
   // 依据 source 选择候选
   let candidates;
@@ -462,7 +520,8 @@ function solveTopK(
   else if (src === "B") candidates = B;
   else candidates = [...A, ...B];
 
-  const __res = bestTopKCombos(candidates, Number(target), fileAName, fileBName, finalTopK, disallowDominant, dominantMoreThan, othersLessThan);
+  const finalGiftArea = Number(giftArea) || 0;
+  const __res = bestTopKCombos(candidates, Number(target), fileAName, fileBName, finalTopK, disallowDominant, dominantMoreThan, othersLessThan, finalGiftArea);
   const __t1 = process.hrtime.bigint();
   const __ms = Number(__t1 - __t0) / 1e6;
   console.log(

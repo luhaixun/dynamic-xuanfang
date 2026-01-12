@@ -170,8 +170,25 @@ function handleSolve(urlObj, res) {
       ? Number(cfg.maxArea)
       : undefined;
 
+  // 打印用户输入信息
+  console.log("\n========== 用户请求信息 ==========");
+  console.log(`目标面积: ${target}`);
+  console.log(`赠送面积: ${giftArea}${giftArea > 0 ? " (已启用)" : " (未启用)"}`);
+  console.log(`最终计算面积: ${target} + ${giftArea} = ${effectiveTarget}`);
+  console.log(`返回数量 topK: ${topK}`);
+  console.log(`数据来源 source: ${source}`);
+  console.log(`最小面积 minArea: ${minArea !== undefined ? minArea : "未设置"}`);
+  console.log(`最大面积 maxArea: ${maxArea !== undefined ? maxArea : "未设置"}`);
+  
   {
     const xfCommunities = urlObj.searchParams.getAll("xfCommunities");
+    if (xfCommunities.length > 0) {
+      console.log(`现房小区筛选: ${xfCommunities.join(", ")}`);
+    } else {
+      console.log(`现房小区筛选: 全部`);
+    }
+    console.log("===================================\n");
+    
     const options = { topK, source, minArea, maxArea, xfCommunities };
     POOL.runTask({ target: effectiveTarget, options })
       .then((results) => sendJson(res, results))
@@ -210,9 +227,26 @@ function handleExcel(urlObj, res) {
       ? Number(cfg.maxArea)
       : undefined;
 
+  // 打印用户导出Excel请求信息
+  console.log("\n========== Excel导出请求信息 ==========");
+  console.log(`目标面积: ${target}`);
+  console.log(`赠送面积: ${giftArea}${giftArea > 0 ? " (已启用)" : " (未启用)"}`);
+  console.log(`最终计算面积: ${target} + ${giftArea} = ${effectiveTarget}`);
+  console.log(`返回数量 topK: ${topK}`);
+  console.log(`数据来源 source: ${source}`);
+  console.log(`最小面积 minArea: ${minArea !== undefined ? minArea : "未设置"}`);
+  console.log(`最大面积 maxArea: ${maxArea !== undefined ? maxArea : "未设置"}`);
+
   let tmpXlsx = path.resolve(__dirname, `output-${Date.now()}.xlsx`);
   {
     const xfCommunities = urlObj.searchParams.getAll("xfCommunities");
+    if (xfCommunities.length > 0) {
+      console.log(`现房小区筛选: ${xfCommunities.join(", ")}`);
+    } else {
+      console.log(`现房小区筛选: 全部`);
+    }
+    console.log("=========================================\n");
+    
     const options = { topK, source, minArea, maxArea, xfCommunities };
     POOL.runTask({ target: effectiveTarget, options })
       .then((results) => {
@@ -301,6 +335,39 @@ const server = http.createServer((req, res) => {
       return sendJson(res, listXfCommunities());
     }
     return sendJson(res, []);
+  }
+
+  // maxArea 建议接口：根据数据源返回建议的最大面积
+  if (req.method === "GET" && pathname === "/max-area-suggestion") {
+    const source = (urlObj.searchParams.get("source") || "AB").toUpperCase();
+    
+    // 计算期房最大面积
+    const qifangMax = qifangRows.reduce((max, row) => {
+      const area = Number(row["建筑面积"]);
+      return (Number.isFinite(area) && area > max) ? area : max;
+    }, 0);
+    
+    // 计算现房最大面积
+    const xianfangMax = xianfangRows.reduce((max, row) => {
+      const area = Number(row["建筑面积"]);
+      return (Number.isFinite(area) && area > max) ? area : max;
+    }, 0);
+    
+    let suggestedMax;
+    if (source === "A") {
+      suggestedMax = qifangMax;
+    } else if (source === "B") {
+      suggestedMax = xianfangMax;
+    } else {
+      // AB: 取两者中的较大值
+      suggestedMax = Math.max(qifangMax, xianfangMax);
+    }
+    
+    return sendJson(res, { 
+      maxArea: Number(suggestedMax.toFixed(2)),
+      qifangMax: Number(qifangMax.toFixed(2)),
+      xianfangMax: Number(xianfangMax.toFixed(2))
+    });
   }
 
   // 静态资源（若需要可扩展）

@@ -5,11 +5,10 @@
   "fileBPath": "./data/现房-汇总.json",
   "excel": "./output.xlsx",
   "minArea": 50,
-  "maxArea": 125.76,
   "targetPresets": [318.64, 312.64],
   "policy": {
     "disallowDominantWithSmallOthers": true,
-    "dominantMoreThan": 100,
+    "dominantMoreThan": 135,
     "othersLessThan": 70
   }
 }

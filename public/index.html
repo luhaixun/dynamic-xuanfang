@@ -271,13 +271,78 @@
     .loading-overlay .panel {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px 20px;
+      border-radius: 16px;
+      padding: 32px 40px;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 12px;
+      gap: 20px;
       color: var(--text);
+      min-width: 280px;
     }
+    
+    /* 圆形进度条容器 */
+    .progress-ring {
+      position: relative;
+      width: 140px;
+      height: 140px;
+    }
+    
+    /* SVG 圆形进度条 */
+    .progress-ring__circle {
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+      transition: stroke-dashoffset 0.3s ease;
+    }
+    
+    .progress-ring__circle-bg {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 8;
+    }
+    
+    .progress-ring__circle-progress {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 8;
+      stroke-linecap: round;
+      stroke-dasharray: 377; /* 2 * π * 60 */
+      stroke-dashoffset: 377;
+    }
+    
+    /* 进度百分比文本 */
+    .progress-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--accent);
+      text-align: center;
+    }
+    
+    .progress-text-small {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    
+    /* 加载提示文本 */
+    .loading-message {
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+    }
+    
+    .loading-submessage {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: -8px;
+    }
+    
+    /* 旋转动画（备用） */
     .spinner {
       width: 20px;
       height: 20px;
@@ -287,6 +352,16 @@
       animation: spin .8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    
+    /* 脉冲动画 */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    
+    .pulse {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
   </style>
 </head>
 
@@ -384,117 +459,139 @@
         <button type="button" class="btn secondary" id="btn-export-table" disabled>导出表格到 Excel</button>
       </div>
     </div>
-    <div class="row" style="gap:8px; margin:8px 0;">
-      <select id="structureFilter" style="width:200px;">
-        <option value="none">套型组合：不限</option>
-        <option value="LMM">大+中+中</option>
-        <option value="LLS">大+大+小</option>
-        <option value="MMMS">中+中+中+小</option>
-        <option value="MMSS">中+中+小+小</option>
-      </select>
-      <select id="qfCountFilter" style="width:160px;">
-        <option value="any">期房数量：不限</option>
-        <option value="0">期房数量：0</option>
-        <option value="1">期房数量：1</option>
-        <option value="2">期房数量：2</option>
-        <option value="3">期房数量：3</option>
-      </select>
-      <select id="xfCountFilter" style="width:160px;">
-        <option value="any">现房数量：不限</option>
-        <option value="0">现房数量：0</option>
-        <option value="1">现房数量：1</option>
-        <option value="2">现房数量：2</option>
-        <option value="3">现房数量：3</option>
-        <option value="4">现房数量：4</option>
-      </select>
-      <div class="dropdown" id="qfFloorDropdown" style="width:160px;">
-        <button type="button" class="dropdown-btn" id="qfFloorDropdownBtn">期房楼层：不限</button>
-        <div class="dropdown-menu" id="qfFloorDropdownMenu" style="display:none;">
-          <div class="xf-actions">
-            <button type="button" class="btn" id="qfFloorSelectAll">全选</button>
-            <button type="button" class="btn secondary" id="qfFloorClearAll">清空</button>
-          </div>
-          <div id="qfFloorOptions"></div>
+    <div style="margin:8px 0;">
+      <!-- 筛选组 1: 套型组合 -->
+      <div style="margin-bottom:16px;">
+        <div class="muted" style="font-weight:600; margin-bottom:8px;">1. 套型组合</div>
+        <div class="row" style="gap:8px;">
+          <select id="structureFilter" style="width:200px;">
+            <option value="none">套型组合：不限</option>
+            <option value="LMM">大+中+中</option>
+            <option value="LLS">大+大+小</option>
+            <option value="MMMS">中+中+中+小</option>
+            <option value="MMSS">中+中+小+小</option>
+          </select>
+          <select id="houseCountFilter" style="width:160px;">
+            <option value="any">房屋数量：不限</option>
+            <option value="3">房屋数量：3</option>
+            <option value="4">房屋数量：4</option>
+          </select>
         </div>
       </div>
-      <div class="dropdown" id="xfFloorDropdown" style="width:160px;">
-        <button type="button" class="dropdown-btn" id="xfFloorDropdownBtn">现房楼层：不限</button>
-        <div class="dropdown-menu" id="xfFloorDropdownMenu" style="display:none;">
-          <div class="xf-actions">
-            <button type="button" class="btn" id="xfFloorSelectAll">全选</button>
-            <button type="button" class="btn secondary" id="xfFloorClearAll">清空</button>
+
+      <!-- 筛选组 2: 期房 -->
+      <div style="margin-bottom:16px;">
+        <div class="muted" style="font-weight:600; margin-bottom:8px;">2. 期房</div>
+        <div class="row" style="gap:8px;">
+          <select id="qfCountFilter" style="width:160px;">
+            <option value="any">期房数量：不限</option>
+            <option value="0">期房数量：0</option>
+            <option value="1">期房数量：1</option>
+            <option value="2">期房数量：2</option>
+            <option value="3">期房数量：3</option>
+          </select>
+          <div class="dropdown" id="qfFloorDropdown" style="width:160px;">
+            <button type="button" class="dropdown-btn" id="qfFloorDropdownBtn">期房楼层：不限</button>
+            <div class="dropdown-menu" id="qfFloorDropdownMenu" style="display:none;">
+              <div class="xf-actions">
+                <button type="button" class="btn" id="qfFloorSelectAll">全选</button>
+                <button type="button" class="btn secondary" id="qfFloorClearAll">清空</button>
+              </div>
+              <div id="qfFloorOptions"></div>
+            </div>
           </div>
-          <div id="xfFloorOptions"></div>
+          <div class="dropdown" id="qfCatDropdown" style="width:160px;">
+            <button type="button" class="dropdown-btn" id="qfCatDropdownBtn">期房类别：不限</button>
+            <div class="dropdown-menu" id="qfCatDropdownMenu" style="display:none;">
+              <div class="xf-actions">
+                <button type="button" class="btn" id="qfCatSelectAll">全选</button>
+                <button type="button" class="btn secondary" id="qfCatClearAll">清空</button>
+              </div>
+              <div id="qfCatOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="qfBuildingDropdown" style="width:160px;">
+            <button type="button" class="dropdown-btn" id="qfBuildingDropdownBtn">期房幢号：不限</button>
+            <div class="dropdown-menu" id="qfBuildingDropdownMenu" style="display:none;">
+              <div class="xf-actions">
+                <button type="button" class="btn" id="qfBuildingSelectAll">全选</button>
+                <button type="button" class="btn secondary" id="qfBuildingClearAll">清空</button>
+              </div>
+              <div id="qfBuildingOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="qfDoorDropdown" style="width:160px;">
+            <button type="button" class="dropdown-btn" id="qfDoorDropdownBtn">期房门牌：不限</button>
+            <div class="dropdown-menu" id="qfDoorDropdownMenu" style="display:none;">
+              <div class="xf-actions">
+                <button type="button" class="btn" id="qfDoorSelectAll">全选</button>
+                <button type="button" class="btn secondary" id="qfDoorClearAll">清空</button>
+              </div>
+              <div id="qfDoorOptions"></div>
+            </div>
+          </div>
         </div>
       </div>
-      <!-- 新增：期房/现房 A/B/C 类别筛选 -->
-      <div class="dropdown" id="qfCatDropdown" style="width:160px;">
-        <button type="button" class="dropdown-btn" id="qfCatDropdownBtn">期房类别：不限</button>
-        <div class="dropdown-menu" id="qfCatDropdownMenu" style="display:none;">
-          <div class="xf-actions">
-            <button type="button" class="btn" id="qfCatSelectAll">全选</button>
-            <button type="button" class="btn secondary" id="qfCatClearAll">清空</button>
+
+      <!-- 筛选组 3: 现房 -->
+      <div style="margin-bottom:16px;">
+        <div class="muted" style="font-weight:600; margin-bottom:8px;">3. 现房</div>
+        <div class="row" style="gap:8px; align-items:flex-start;">
+          <select id="xfCountFilter" style="width:160px;">
+            <option value="any">现房数量：不限</option>
+            <option value="0">现房数量：0</option>
+            <option value="1">现房数量：1</option>
+            <option value="2">现房数量：2</option>
+            <option value="3">现房数量：3</option>
+            <option value="4">现房数量：4</option>
+          </select>
+          <div class="dropdown" id="xfAreaDropdown" style="width:160px;">
+            <button type="button" class="dropdown-btn" id="xfAreaDropdownBtn">现房面积：不限</button>
+            <div class="dropdown-menu" id="xfAreaDropdownMenu" style="display:none;">
+              <div class="xf-actions">
+                <button type="button" class="btn" id="xfAreaSelectAll">全选</button>
+                <button type="button" class="btn secondary" id="xfAreaClearAll">清空</button>
+              </div>
+              <div id="xfAreaOptions"></div>
+            </div>
           </div>
-          <div id="qfCatOptions"></div>
+          <div class="dropdown" id="xfFloorDropdown" style="width:160px;">
+            <button type="button" class="dropdown-btn" id="xfFloorDropdownBtn">现房楼层：不限</button>
+            <div class="dropdown-menu" id="xfFloorDropdownMenu" style="display:none;">
+              <div class="xf-actions">
+                <button type="button" class="btn" id="xfFloorSelectAll">全选</button>
+                <button type="button" class="btn secondary" id="xfFloorClearAll">清空</button>
+              </div>
+              <div id="xfFloorOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="xfCatDropdown" style="width:160px;">
+            <button type="button" class="dropdown-btn" id="xfCatDropdownBtn">现房类别：不限</button>
+            <div class="dropdown-menu" id="xfCatDropdownMenu" style="display:none;">
+              <div class="xf-actions">
+                <button type="button" class="btn" id="xfCatSelectAll">全选</button>
+                <button type="button" class="btn secondary" id="xfCatClearAll">清空</button>
+              </div>
+              <div id="xfCatOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="xfDoorDropdown" style="width:160px;">
+            <button type="button" class="dropdown-btn" id="xfDoorDropdownBtn">现房门牌：不限</button>
+            <div class="dropdown-menu" id="xfDoorDropdownMenu" style="display:none;">
+              <div class="xf-actions">
+                <button type="button" class="btn" id="xfDoorSelectAll">全选</button>
+                <button type="button" class="btn secondary" id="xfDoorClearAll">清空</button>
+              </div>
+              <div id="xfDoorOptions"></div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="dropdown" id="xfCatDropdown" style="width:160px;">
-        <button type="button" class="dropdown-btn" id="xfCatDropdownBtn">现房类别：不限</button>
-        <div class="dropdown-menu" id="xfCatDropdownMenu" style="display:none;">
-          <div class="xf-actions">
-            <button type="button" class="btn" id="xfCatSelectAll">全选</button>
-            <button type="button" class="btn secondary" id="xfCatClearAll">清空</button>
-          </div>
-          <div id="xfCatOptions"></div>
-        </div>
+
+      <!-- 清空筛选按钮 -->
+      <div class="row" style="gap:8px;">
+        <button type="button" class="btn" id="filterClear">清空筛选</button>
       </div>
-      <!-- 新增：期房/现房 幢号筛选 -->
-      <div class="dropdown" id="qfBuildingDropdown" style="width:160px;">
-        <button type="button" class="dropdown-btn" id="qfBuildingDropdownBtn">期房幢号：不限</button>
-        <div class="dropdown-menu" id="qfBuildingDropdownMenu" style="display:none;">
-          <div class="xf-actions">
-            <button type="button" class="btn" id="qfBuildingSelectAll">全选</button>
-            <button type="button" class="btn secondary" id="qfBuildingClearAll">清空</button>
-          </div>
-          <div id="qfBuildingOptions"></div>
-        </div>
-      </div>
-      <div class="dropdown" id="xfBuildingDropdown" style="width:160px;">
-        <button type="button" class="dropdown-btn" id="xfBuildingDropdownBtn">现房幢号：不限</button>
-        <div class="dropdown-menu" id="xfBuildingDropdownMenu" style="display:none;">
-          <div class="xf-actions">
-            <button type="button" class="btn" id="xfBuildingSelectAll">全选</button>
-            <button type="button" class="btn secondary" id="xfBuildingClearAll">清空</button>
-          </div>
-          <div id="xfBuildingOptions"></div>
-        </div>
-      </div>
-      <!-- 新增：期房/现房 门牌号筛选 -->
-      <div class="dropdown" id="qfDoorDropdown" style="width:160px;">
-        <button type="button" class="dropdown-btn" id="qfDoorDropdownBtn">期房门牌：不限</button>
-        <div class="dropdown-menu" id="qfDoorDropdownMenu" style="display:none;">
-          <div class="xf-actions">
-            <button type="button" class="btn" id="qfDoorSelectAll">全选</button>
-            <button type="button" class="btn secondary" id="qfDoorClearAll">清空</button>
-          </div>
-          <div id="qfDoorOptions"></div>
-        </div>
-      </div>
-      <div class="dropdown" id="xfDoorDropdown" style="width:160px;">
-        <button type="button" class="dropdown-btn" id="xfDoorDropdownBtn">现房门牌：不限</button>
-        <div class="dropdown-menu" id="xfDoorDropdownMenu" style="display:none;">
-          <div class="xf-actions">
-            <button type="button" class="btn" id="xfDoorSelectAll">全选</button>
-            <button type="button" class="btn secondary" id="xfDoorClearAll">清空</button>
-          </div>
-          <div id="xfDoorOptions"></div>
-        </div>
-      </div>
-      <label class="badge" style="cursor:pointer; display:flex; align-items:center; gap:6px;">
-        <input type="checkbox" id="xfBig12Only" />
-        <span>仅显示：含现房且存在 >100 平 的现房在 1/2 楼</span>
-      </label>
-      <button type="button" class="btn" id="filterClear">清空筛选</button>
     </div>
     <div id="results" class="results">尚未计算</div>
   </div>
@@ -703,13 +800,13 @@
       const isXF = t.includes('(现房)');
       const type = isQF ? 'qf' : (isXF ? 'xf' : null);
 
-      // 类别（A/B/C）可能出现在面积之后，如 "95.23 A(期房) ..."，因此不能只匹配开头
+      // 类别（A/B/C/D）可能出现在面积之后，如 "95.23 A(期房) ..."，因此不能只匹配开头
       let category = null;
-      const catMatchStrict = t.match(/\b([ABC])\s*\((期房|现房)\)/);
+      const catMatchStrict = t.match(/\b([ABCD])\s*\((期房|现房)\)/);
       if (catMatchStrict) {
         category = catMatchStrict[1];
       } else {
-        const catMatchLoose = t.match(/\b([ABC])\s*\(/);
+        const catMatchLoose = t.match(/\b([ABCD])\s*\(/);
         category = catMatchLoose ? catMatchLoose[1] : null;
       }
 
@@ -732,21 +829,21 @@
       const qfCatCont = document.getElementById('qfCatOptions');
       const xfCatCont = document.getElementById('xfCatOptions');
       const qfBuildCont = document.getElementById('qfBuildingOptions');
-      const xfBuildCont = document.getElementById('xfBuildingOptions');
       const qfDoorCont = document.getElementById('qfDoorOptions');
       const xfDoorCont = document.getElementById('xfDoorOptions');
+      const xfAreaCont = document.getElementById('xfAreaOptions');
 
       const qfFloorBtn = document.getElementById('qfFloorDropdownBtn');
       const xfFloorBtn = document.getElementById('xfFloorDropdownBtn');
       const qfCatBtn = document.getElementById('qfCatDropdownBtn');
       const xfCatBtn = document.getElementById('xfCatDropdownBtn');
       const qfBuildBtn = document.getElementById('qfBuildingDropdownBtn');
-      const xfBuildBtn = document.getElementById('xfBuildingDropdownBtn');
       const qfDoorBtn = document.getElementById('qfDoorDropdownBtn');
       const xfDoorBtn = document.getElementById('xfDoorDropdownBtn');
+      const xfAreaBtn = document.getElementById('xfAreaDropdownBtn');
 
       // 清空容器
-      [qfFloorCont, xfFloorCont, qfCatCont, xfCatCont, qfBuildCont, xfBuildCont, qfDoorCont, xfDoorCont].forEach(c => { if (c) c.innerHTML = ''; });
+      [qfFloorCont, xfFloorCont, qfCatCont, xfCatCont, qfBuildCont, qfDoorCont, xfDoorCont, xfAreaCont].forEach(c => { if (c) c.innerHTML = ''; });
 
       if (!table) {
         if (qfFloorBtn) qfFloorBtn.textContent = '期房楼层：不限';
@@ -754,9 +851,9 @@
         if (qfCatBtn) qfCatBtn.textContent = '期房类别：不限';
         if (xfCatBtn) xfCatBtn.textContent = '现房类别：不限';
         if (qfBuildBtn) qfBuildBtn.textContent = '期房幢号：不限';
-        if (xfBuildBtn) xfBuildBtn.textContent = '现房幢号：不限';
         if (qfDoorBtn) qfDoorBtn.textContent = '期房门牌：不限';
         if (xfDoorBtn) xfDoorBtn.textContent = '现房门牌：不限';
+        if (xfAreaBtn) xfAreaBtn.textContent = '现房面积：不限';
         return;
       }
 
@@ -765,9 +862,9 @@
       const qfCats = new Set();
       const xfCats = new Set();
       const qfBuildings = new Set();
-      const xfBuildings = new Set();
       const qfDoors = new Set();
       const xfDoors = new Set();
+      const xfAreas = new Set();
 
       const trs = Array.from(table.querySelectorAll('tbody tr'));
       trs.forEach(tr => {
@@ -783,8 +880,10 @@
           } else if (info.type === 'xf') {
             if (info.floor && info.floor > 0) xfFloors.add(info.floor);
             if (info.category) xfCats.add(info.category);
-            if (Number.isFinite(info.building)) xfBuildings.add(info.building);
             if (Number.isFinite(info.door)) xfDoors.add(info.door);
+            // 提取现房面积
+            const area = parseFloat(text);
+            if (Number.isFinite(area) && area > 0) xfAreas.add(area);
           }
         }
       });
@@ -811,7 +910,6 @@
       const qCats = Array.from(qfCats).sort();
       const xCats = Array.from(xfCats).sort();
       const qBuilds = Array.from(qfBuildings).sort((a, b) => a - b);
-      const xBuilds = Array.from(xfBuildings).sort((a, b) => a - b);
       const qDoorsArr = Array.from(qfDoors).sort((a, b) => a - b);
       const xDoorsArr = Array.from(xfDoors).sort((a, b) => a - b);
 
@@ -820,7 +918,6 @@
       if (qfCatCont) qCats.forEach(c => qfCatCont.appendChild(makeOptionRow('qfCat', c)));
       if (xfCatCont) xCats.forEach(c => xfCatCont.appendChild(makeOptionRow('xfCat', c)));
       if (qfBuildCont) qBuilds.forEach(b => qfBuildCont.appendChild(makeOptionRow('qfBuild', b)));
-      if (xfBuildCont) xBuilds.forEach(b => xfBuildCont.appendChild(makeOptionRow('xfBuild', b)));
       if (qfDoorCont) qDoorsArr.forEach(d => qfDoorCont.appendChild(makeOptionRow('qfDoor', d)));
       if (xfDoorCont) xDoorsArr.forEach(d => xfDoorCont.appendChild(makeOptionRow('xfDoor', d)));
 
@@ -840,7 +937,6 @@
       setupDropdown('qfCatDropdown', 'qfCatDropdownBtn', 'qfCatDropdownMenu');
       setupDropdown('xfCatDropdown', 'xfCatDropdownBtn', 'xfCatDropdownMenu');
       setupDropdown('qfBuildingDropdown', 'qfBuildingDropdownBtn', 'qfBuildingDropdownMenu');
-      setupDropdown('xfBuildingDropdown', 'xfBuildingDropdownBtn', 'xfBuildingDropdownMenu');
       setupDropdown('qfDoorDropdown', 'qfDoorDropdownBtn', 'qfDoorDropdownMenu');
       setupDropdown('xfDoorDropdown', 'xfDoorDropdownBtn', 'xfDoorDropdownMenu');
 
@@ -863,8 +959,6 @@
 
       document.getElementById('qfBuildingSelectAll')?.addEventListener('click', () => setAllSelected('#qfBuildingOptions', true));
       document.getElementById('qfBuildingClearAll')?.addEventListener('click', () => setAllSelected('#qfBuildingOptions', false));
-      document.getElementById('xfBuildingSelectAll')?.addEventListener('click', () => setAllSelected('#xfBuildingOptions', true));
-      document.getElementById('xfBuildingClearAll')?.addEventListener('click', () => setAllSelected('#xfBuildingOptions', false));
 
       document.getElementById('qfDoorSelectAll')?.addEventListener('click', () => setAllSelected('#qfDoorOptions', true));
       document.getElementById('qfDoorClearAll')?.addEventListener('click', () => setAllSelected('#qfDoorOptions', false));
@@ -872,7 +966,7 @@
       document.getElementById('xfDoorClearAll')?.addEventListener('click', () => setAllSelected('#xfDoorOptions', false));
 
       // 选项变化事件
-      ['qfFloorOptions', 'xfFloorOptions', 'qfCatOptions', 'xfCatOptions', 'qfBuildingOptions', 'xfBuildingOptions', 'qfDoorOptions', 'xfDoorOptions'].forEach(id => {
+      ['qfFloorOptions', 'xfFloorOptions', 'qfCatOptions', 'xfCatOptions', 'qfBuildingOptions', 'qfDoorOptions', 'xfDoorOptions'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', (e) => {
           if (e.target && e.target.matches('input[type="checkbox"]')) {
             updateDropdownBtnLabels();
@@ -887,7 +981,6 @@
         const qSelCats = Array.from(document.querySelectorAll('#qfCatOptions input[type="checkbox"]:checked')).map(b => b.value);
         const xSelCats = Array.from(document.querySelectorAll('#xfCatOptions input[type="checkbox"]:checked')).map(b => b.value);
         const qSelBuilds = Array.from(document.querySelectorAll('#qfBuildingOptions input[type="checkbox"]:checked')).map(b => b.value);
-        const xSelBuilds = Array.from(document.querySelectorAll('#xfBuildingOptions input[type="checkbox"]:checked')).map(b => b.value);
         const qSelDoors = Array.from(document.querySelectorAll('#qfDoorOptions input[type="checkbox"]:checked')).map(b => b.value);
         const xSelDoors = Array.from(document.querySelectorAll('#xfDoorOptions input[type="checkbox"]:checked')).map(b => b.value);
 
@@ -896,7 +989,6 @@
         if (qfCatBtn) qfCatBtn.textContent = qSelCats.length ? ('期房类别：' + qSelCats.join('、')) : '期房类别：不限';
         if (xfCatBtn) xfCatBtn.textContent = xSelCats.length ? ('现房类别：' + xSelCats.join('、')) : '现房类别：不限';
         if (qfBuildBtn) qfBuildBtn.textContent = qSelBuilds.length ? ('期房幢号：' + qSelBuilds.join('、')) : '期房幢号：不限';
-        if (xfBuildBtn) xfBuildBtn.textContent = xSelBuilds.length ? ('现房幢号：' + xSelBuilds.join('、')) : '现房幢号：不限';
         if (qfDoorBtn) qfDoorBtn.textContent = qSelDoors.length ? ('期房门牌：' + qSelDoors.join('、')) : '期房门牌：不限';
         if (xfDoorBtn) xfDoorBtn.textContent = xSelDoors.length ? ('现房门牌：' + xSelDoors.join('、')) : '现房门牌：不限';
       }
@@ -917,6 +1009,7 @@
       const keyword = keywordEl ? keywordEl.value.trim() : '';
       const mode = modeEl ? (modeEl.value || 'include') : 'include';
       const struct = (document.getElementById('structureFilter')?.value) || 'none';
+      const houseCount = (document.getElementById('houseCountFilter')?.value) || 'any';
       const qSel = (document.getElementById('qfCountFilter')?.value) || 'any';
       const xSel = (document.getElementById('xfCountFilter')?.value) || 'any';
 
@@ -931,7 +1024,6 @@
       const qCatSel = getCheckedValues('#qfCatOptions', false);
       const xfCatSel = getCheckedValues('#xfCatOptions', false);
       const qBuildSel = getCheckedValues('#qfBuildingOptions', true);
-      const xfBuildSel = getCheckedValues('#xfBuildingOptions', true);
       const qDoorSel = getCheckedValues('#qfDoorOptions', true);
       const xfDoorSel = getCheckedValues('#xfDoorOptions', true);
 
@@ -982,6 +1074,18 @@
         const cats = nums.map(categorizeArea);
         const showStruct = struct === 'none' ? true : matchesStructurePattern(cats, struct);
 
+        // 房屋数量筛选：检查房4是否为空
+        let showHouseCount = true;
+        if (houseCount === '3') {
+          // 房屋数量为3：房4应该为空
+          const house4Text = (tr.children[4]?.textContent || '').trim();
+          showHouseCount = !house4Text || house4Text === '';
+        } else if (houseCount === '4') {
+          // 房屋数量为4：房4应该不为空
+          const house4Text = (tr.children[4]?.textContent || '').trim();
+          showHouseCount = house4Text && house4Text !== '';
+        }
+
         // 统计当前行期房/现房数量，并收集详细属性
         const infoItems = [1, 2, 3, 4].map(i => parseCellInfo(tr.children[i]?.textContent || '')).filter(Boolean);
         const counts = infoItems.reduce((acc, it) => {
@@ -1005,11 +1109,9 @@
         const showQCat = qCatSel.length === 0 ? true : qCatsRow.some(c => qCatSel.includes(c));
         const showXCat = xfCatSel.length === 0 ? true : xCatsRow.some(c => xfCatSel.includes(c));
 
-        // 幢号筛选
+        // 幢号筛选（仅期房）
         const qBuildsRow = infoItems.filter(it => it.type === 'qf' && Number.isFinite(it.building)).map(it => it.building);
-        const xBuildsRow = infoItems.filter(it => it.type === 'xf' && Number.isFinite(it.building)).map(it => it.building);
         const showQBuild = qBuildSel.length === 0 ? true : qBuildsRow.some(b => qBuildSel.includes(b));
-        const showXBuild = xfBuildSel.length === 0 ? true : xBuildsRow.some(b => xfBuildSel.includes(b));
 
         // 门牌号筛选（期房严格包含：若选择了门牌号，则该行所有期房门牌必须都在选择集合中）
         const qDoorsRow = infoItems.filter(it => it.type === 'qf' && Number.isFinite(it.door)).map(it => it.door);
@@ -1021,22 +1123,7 @@
         // 现房门牌：保持“任一命中即可”的宽松逻辑
         const showXDoor = xfDoorSel.length === 0 ? true : xDoorsRow.some(d => xfDoorSel.includes(d));
 
-        const xfBig12Only = document.getElementById('xfBig12Only')?.checked;
-        let showSpecial = true;
-        if (xfBig12Only) {
-          // 仅显示包含“现房且面积>100 且楼层为 1/2”的任意一套
-          const hasXfBig12 = [1, 2, 3, 4].some(i => {
-            const cellText = tr.children[i]?.textContent || '';
-            const info = parseCellInfo(cellText);
-            if (!info || info.type !== 'xf') return false;
-            const area = parseFloat(cellText);
-            const floor = info.floor;
-            return Number.isFinite(area) && area > 100 && (floor === 1 || floor === 2);
-          });
-          showSpecial = hasXfBig12;
-        }
-
-        const show = showKeyword && showStruct && showQ && showX && showF && showQCat && showXCat && showQBuild && showXBuild && showQDoor && showXDoor && showSpecial;
+        const show = showKeyword && showStruct && showHouseCount && showQ && showX && showF && showQCat && showXCat && showQBuild && showQDoor && showXDoor;
         tr.style.display = show ? '' : 'none';
         if (show) visibleCount++;
       });
@@ -1152,11 +1239,82 @@
       update();
     }
 
+    // 进度条动画控制
+    let progressInterval = null;
+    
+    function updateProgress(percent) {
+      const circle = document.getElementById('progressCircle');
+      const percentText = document.getElementById('progressPercent');
+      if (!circle || !percentText) return;
+      
+      // 圆的周长：2 * π * r = 2 * π * 60 = 377
+      const circumference = 377;
+      const offset = circumference - (percent / 100) * circumference;
+      
+      circle.style.strokeDashoffset = offset;
+      percentText.textContent = Math.round(percent) + '%';
+    }
+    
+    function startProgressAnimation() {
+      let progress = 0;
+      const startTime = Date.now();
+      const estimatedDuration = 18000; // 预计18秒（根据实际情况调整）
+      
+      // 重置进度
+      updateProgress(0);
+      
+      progressInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        
+        // 根据实际经过时间计算进度，使用缓动函数
+        // 使用对数增长，让进度条更平滑地到达高百分比
+        const timeProgress = (elapsed / estimatedDuration) * 100;
+        
+        // 应用缓动函数：快速到70%，然后逐渐放缓至95%
+        let targetProgress;
+        if (timeProgress < 70) {
+          targetProgress = timeProgress;
+        } else if (timeProgress < 95) {
+          // 70-95%区间放缓
+          targetProgress = 70 + (timeProgress - 70) * 0.8;
+        } else {
+          // 95%以后更缓慢，但继续前进
+          targetProgress = 89 + (timeProgress - 95) * 0.4;
+        }
+        
+        // 限制最大值为98%，留给实际完成时到100%
+        progress = Math.min(targetProgress, 98);
+        
+        updateProgress(progress);
+      }, 100);
+    }
+    
+    function stopProgressAnimation(complete = true) {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+      
+      if (complete) {
+        // 快速完成到100%
+        updateProgress(100);
+        setTimeout(() => {
+          updateProgress(0); // 重置为下次使用做准备
+        }, 500);
+      }
+    }
+    
     function setLoading(flag) {
       const ov = document.getElementById('loadingOverlay');
       const solveBtn = document.getElementById('btn-solve');
       if (ov) ov.style.display = flag ? 'flex' : 'none';
       if (solveBtn) solveBtn.disabled = !!flag;
+      
+      if (flag) {
+        startProgressAnimation();
+      } else {
+        stopProgressAnimation(true);
+      }
     }
 
     function exportFilteredTableToExcel() {
@@ -1220,21 +1378,25 @@
     document.getElementById('filterText')?.addEventListener('input', applyFilter);
     document.getElementById('filterMode')?.addEventListener('change', applyFilter);
     document.getElementById('structureFilter').addEventListener('change', applyFilter);
+    document.getElementById('houseCountFilter')?.addEventListener('change', applyFilter);
     document.getElementById('qfCountFilter')?.addEventListener('change', applyFilter);
     document.getElementById('xfCountFilter')?.addEventListener('change', applyFilter);
-    document.getElementById('xfBig12Only')?.addEventListener('change', applyFilter);
     document.getElementById('filterClear').addEventListener('click', () => {
       const input = document.getElementById('filterText');
       if (input) input.value = '';
+      const structFilter = document.getElementById('structureFilter');
+      const houseCountFilter = document.getElementById('houseCountFilter');
       const qSel = document.getElementById('qfCountFilter');
       const xSel = document.getElementById('xfCountFilter');
+      if (structFilter) structFilter.value = 'none';
+      if (houseCountFilter) houseCountFilter.value = 'any';
       if (qSel) qSel.value = 'any';
       if (xSel) xSel.value = 'any';
       // 清空楼层/类别/幢号/门牌多选（期房/现房）
       const toClearSelectors = [
         '#qfFloorOptions', '#xfFloorOptions',
         '#qfCatOptions', '#xfCatOptions',
-        '#qfBuildingOptions', '#xfBuildingOptions',
+        '#qfBuildingOptions',
         '#qfDoorOptions', '#xfDoorOptions'
       ];
       toClearSelectors.forEach(sel => {
@@ -1247,7 +1409,6 @@
         ['qfCatDropdownBtn', '期房类别：不限'],
         ['xfCatDropdownBtn', '现房类别：不限'],
         ['qfBuildingDropdownBtn', '期房幢号：不限'],
-        ['xfBuildingDropdownBtn', '现房幢号：不限'],
         ['qfDoorDropdownBtn', '期房门牌：不限'],
         ['xfDoorDropdownBtn', '现房门牌：不限']
       ];
@@ -1295,8 +1456,18 @@
   </script>
   <div id="loadingOverlay" class="loading-overlay">
     <div class="panel">
-      <div class="spinner"></div>
-      <div>计算中，请稍候…</div>
+      <div class="progress-ring">
+        <svg width="140" height="140">
+          <circle class="progress-ring__circle-bg" cx="70" cy="70" r="60"></circle>
+          <circle class="progress-ring__circle progress-ring__circle-progress" cx="70" cy="70" r="60" id="progressCircle"></circle>
+        </svg>
+        <div class="progress-text">
+          <div id="progressPercent">0%</div>
+          <div class="progress-text-small">计算中</div>
+        </div>
+      </div>
+      <div class="loading-message">正在计算最优组合</div>
+      <div class="loading-submessage pulse">请稍候，预计需要几秒钟...</div>
     </div>
   </div>
   <script>
