@@ -145,6 +145,11 @@ function handleSolve(urlObj, res) {
   if (!Number.isFinite(target) || target <= 0) {
     return sendJson(res, { error: "target 参数无效（需为正数）" }, 400);
   }
+  // 赠送面积（0/15/30），默认0
+  let giftArea = Number(q.giftArea);
+  if (!Number.isFinite(giftArea)) giftArea = 0;
+  if (![0, 15, 30].includes(giftArea)) giftArea = 0;
+  const effectiveTarget = target + giftArea;
 
   const cfg = readConfig();
 
@@ -168,7 +173,7 @@ function handleSolve(urlObj, res) {
   {
     const xfCommunities = urlObj.searchParams.getAll("xfCommunities");
     const options = { topK, source, minArea, maxArea, xfCommunities };
-    POOL.runTask({ target, options })
+    POOL.runTask({ target: effectiveTarget, options })
       .then((results) => sendJson(res, results))
       .catch((e) => sendJson(res, { error: (e && e.message) ? e.message : String(e) }, 500));
     return;
@@ -181,6 +186,11 @@ function handleExcel(urlObj, res) {
   if (!Number.isFinite(target) || target <= 0) {
     return sendJson(res, { error: "target 参数无效（需为正数）" }, 400);
   }
+  // 赠送面积（0/15/30），默认0
+  let giftArea = Number(q.giftArea);
+  if (!Number.isFinite(giftArea)) giftArea = 0;
+  if (![0, 15, 30].includes(giftArea)) giftArea = 0;
+  const effectiveTarget = target + giftArea;
 
   const cfg = readConfig();
 
@@ -204,12 +214,12 @@ function handleExcel(urlObj, res) {
   {
     const xfCommunities = urlObj.searchParams.getAll("xfCommunities");
     const options = { topK, source, minArea, maxArea, xfCommunities };
-    POOL.runTask({ target, options })
+    POOL.runTask({ target: effectiveTarget, options })
       .then((results) => {
         try {
           exportToExcel(results, tmpXlsx);
           const stat = fs.statSync(tmpXlsx);
-          const tStr = String(target).trim();
+          const tStr = String(effectiveTarget).trim();
           const safeName = (tStr && tStr !== 'NaN') ? `results-${tStr}.xlsx` : 'results.xlsx';
           res.writeHead(200, {
             "Content-Type":

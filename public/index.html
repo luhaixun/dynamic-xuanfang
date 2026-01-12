@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 
 <head>
   <meta charset="UTF-8" />
   <title>选房程序（内部版）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root {
+    [data-theme="dark"] {
       --bg: #0f172a;
       --panel: #111827;
       --muted: #94a3b8;
@@ -17,6 +17,23 @@
       --card: #1f2937;
       --input: #111827;
       --border: #1f2937;
+      --results-bg: #0b1220;
+      --overlay: rgba(17, 24, 39, 0.65);
+    }
+
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --muted: #64748b;
+      --text: #0f172a;
+      --accent: #16a34a;
+      --accent-2: #2563eb;
+      --danger: #b91c1c;
+      --card: #ffffff;
+      --input: #ffffff;
+      --border: #e5e7eb;
+      --results-bg: #f8fafc;
+      --overlay: rgba(0, 0, 0, 0.35);
     }
 
     html,
@@ -128,7 +145,7 @@
     .results {
       white-space: pre-wrap;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      background: #0b1220;
+      background: var(--results-bg);
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 12px;
@@ -245,7 +262,7 @@
     .loading-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(17, 24, 39, 0.65);
+      background: var(--overlay);
       z-index: 2000;
       display: none;
       align-items: center;
@@ -278,6 +295,7 @@
     <div class="title">
       <h1>选房程序（内部版）</h1>
       <span class="badge" id="cfg-badge">加载配置...</span>
+      <button type="button" class="btn" id="themeToggleBtn" title="切换夜间/白天">切换为白天</button>
     </div>
     <p class="muted">在下方填写参数，然后点击“计算”查看结果。可在结果表右上角导出 Excel。</p>
 
@@ -303,6 +321,14 @@
             </div>
           </div>
           <div>
+            <label for="giftArea">赠送面积（平）</label>
+            <select id="giftArea" name="giftArea">
+              <option value="0">0</option>
+              <option value="15">15</option>
+              <option value="30">30</option>
+            </select>
+          </div>
+          <div>
             <label for="topK">返回数量 topK</label>
             <input id="topK" name="topK" type="number" step="1" min="1" placeholder="默认：10" />
           </div>
@@ -319,8 +345,12 @@
             <input id="minArea" name="minArea" type="number" step="0.01" placeholder="可留空" />
           </div>
           <div>
-            <label for="maxArea">最大面积 maxArea</label>
-            <input id="maxArea" name="maxArea" type="number" step="0.01" placeholder="可留空" />
+            <label for="qfMaxArea">期房最大面积</label>
+            <input id="qfMaxArea" name="qfMaxArea" type="number" step="0.01" placeholder="可留空" />
+          </div>
+          <div>
+            <label for="xfMaxArea">现房最大面积</label>
+            <input id="xfMaxArea" name="xfMaxArea" type="number" step="0.01" placeholder="可留空" />
           </div>
           <div class="grid" style="grid-column: span 2;">
             <div style="grid-column: span 4;">
@@ -460,6 +490,10 @@
           <div id="xfDoorOptions"></div>
         </div>
       </div>
+      <label class="badge" style="cursor:pointer; display:flex; align-items:center; gap:6px;">
+        <input type="checkbox" id="xfBig12Only" />
+        <span>仅显示：含现房且存在 >100 平 的现房在 1/2 楼</span>
+      </label>
       <button type="button" class="btn" id="filterClear">清空筛选</button>
     </div>
     <div id="results" class="results">尚未计算</div>
@@ -493,7 +527,8 @@
         document.getElementById('topK').value = cfg.topK ?? 10;
         document.getElementById('source').value = (cfg.source ?? 'AB').toUpperCase();
         document.getElementById('minArea').value = (cfg.minArea ?? '');
-        document.getElementById('maxArea').value = (cfg.maxArea ?? '');
+        document.getElementById('qfMaxArea').value = (cfg.maxArea ?? '');
+        document.getElementById('xfMaxArea').value = (cfg.xfMaxArea ?? 130.82);
 
         // 目标面积预设：从配置读取 targetPresets[0..1]，否则使用默认值
         const presets = Array.isArray(cfg.targetPresets) ? cfg.targetPresets.slice(0, 2) : [];
@@ -516,6 +551,8 @@
         badge.textContent = `默认 topK=${cfg.topK ?? 10}，${polText}`;
       } catch (e) {
         document.getElementById('cfg-badge').textContent = '配置加载失败';
+        // 设置默认现房最大面积
+        document.getElementById('xfMaxArea').value = 130.82;
       }
     }
 
@@ -984,7 +1021,22 @@
         // 现房门牌：保持“任一命中即可”的宽松逻辑
         const showXDoor = xfDoorSel.length === 0 ? true : xDoorsRow.some(d => xfDoorSel.includes(d));
 
-        const show = showKeyword && showStruct && showQ && showX && showF && showQCat && showXCat && showQBuild && showXBuild && showQDoor && showXDoor;
+        const xfBig12Only = document.getElementById('xfBig12Only')?.checked;
+        let showSpecial = true;
+        if (xfBig12Only) {
+          // 仅显示包含“现房且面积>100 且楼层为 1/2”的任意一套
+          const hasXfBig12 = [1, 2, 3, 4].some(i => {
+            const cellText = tr.children[i]?.textContent || '';
+            const info = parseCellInfo(cellText);
+            if (!info || info.type !== 'xf') return false;
+            const area = parseFloat(cellText);
+            const floor = info.floor;
+            return Number.isFinite(area) && area > 100 && (floor === 1 || floor === 2);
+          });
+          showSpecial = hasXfBig12;
+        }
+
+        const show = showKeyword && showStruct && showQ && showX && showF && showQCat && showXCat && showQBuild && showXBuild && showQDoor && showXDoor && showSpecial;
         tr.style.display = show ? '' : 'none';
         if (show) visibleCount++;
       });
@@ -1031,11 +1083,14 @@
       const topK = document.getElementById('topK').value;
       const source = document.getElementById('source').value;
       const minArea = document.getElementById('minArea').value;
-      const maxArea = document.getElementById('maxArea').value;
+      const qfMaxArea = document.getElementById('qfMaxArea').value;
+      const xfMaxArea = document.getElementById('xfMaxArea').value;
       const xfSel = getXfSelected();
+      const giftArea = Number(document.getElementById('giftArea')?.value || 0);
+      const maxArea = giftArea > 0 ? xfMaxArea : qfMaxArea;
 
       const qs = buildQuery({
-        target: targetNum, topK, source,
+        target: targetNum, giftArea, topK, source,
         minArea, maxArea,
         xfCommunities: xfSel
       });
@@ -1120,10 +1175,13 @@
         const topK = document.getElementById('topK').value;
         const source = document.getElementById('source').value;
         const minArea = document.getElementById('minArea').value;
-        const maxArea = document.getElementById('maxArea').value;
+        const qfMaxArea = document.getElementById('qfMaxArea').value;
+        const xfMaxArea = document.getElementById('xfMaxArea').value;
         const xfSel = getXfSelected();
+        const giftArea = Number(document.getElementById('giftArea')?.value || 0);
+        const maxArea = giftArea > 0 ? xfMaxArea : qfMaxArea;
         const qs = buildQuery({
-          target: targetNum, topK, source,
+          target: targetNum, giftArea, topK, source,
           minArea, maxArea,
           xfCommunities: xfSel
         });
@@ -1150,8 +1208,9 @@
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '筛选结果');
       const targetNum = getSelectedTarget();
-      const targetVal = Number.isFinite(targetNum) ? String(targetNum) : '';
-      const fname = targetVal ? ('results-' + targetVal + '.xlsx') : 'results.xlsx';
+      const giftArea = Number(document.getElementById('giftArea')?.value || 0);
+      const combined = Number.isFinite(targetNum) ? (targetNum + (Number.isFinite(giftArea) ? giftArea : 0)) : null;
+      const fname = Number.isFinite(combined) ? ('results-' + combined + '.xlsx') : 'results.xlsx';
       XLSX.writeFile(wb, fname);
     }
 
@@ -1163,6 +1222,7 @@
     document.getElementById('structureFilter').addEventListener('change', applyFilter);
     document.getElementById('qfCountFilter')?.addEventListener('change', applyFilter);
     document.getElementById('xfCountFilter')?.addEventListener('change', applyFilter);
+    document.getElementById('xfBig12Only')?.addEventListener('change', applyFilter);
     document.getElementById('filterClear').addEventListener('click', () => {
       const input = document.getElementById('filterText');
       if (input) input.value = '';
@@ -1195,6 +1255,7 @@
         const btn = document.getElementById(id);
         if (btn) btn.textContent = text;
       });
+
       applyFilter();
     });
     setupTargetChoice();
@@ -1238,6 +1299,49 @@
       <div>计算中，请稍候…</div>
     </div>
   </div>
+  <script>
+    (function () {
+      const THEME_KEY = 'theme';
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        const btn = document.getElementById('themeToggleBtn');
+        if (btn) {
+          btn.textContent = theme === 'dark' ? '切换为白天' : '切换为夜间';
+          btn.title = '当前：' + (theme === 'dark' ? '夜间' : '白天') + '，点击切换';
+        }
+      }
+      function initTheme() {
+        const saved = localStorage.getItem(THEME_KEY);
+        const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = saved || (systemPrefersDark ? 'dark' : 'light');
+        applyTheme(theme);
+        const btn = document.getElementById('themeToggleBtn');
+        if (btn) {
+          btn.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            const next = current === 'dark' ? 'light' : 'dark';
+            localStorage.setItem(THEME_KEY, next);
+            applyTheme(next);
+          });
+        }
+        // If user hasn't explicitly chosen, follow system changes dynamically
+        if (!saved && window.matchMedia) {
+          const mq = window.matchMedia('(prefers-color-scheme: dark)');
+          const handler = (e) => {
+            const next = e.matches ? 'dark' : 'light';
+            applyTheme(next);
+          };
+          if (mq.addEventListener) mq.addEventListener('change', handler);
+          else if (mq.addListener) mq.addListener(handler);
+        }
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTheme);
+      } else {
+        initTheme();
+      }
+    })();
+  </script>
 </body>
 
 </html>
