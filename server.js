@@ -189,7 +189,7 @@ function handleSolve(urlObj, res) {
     }
     console.log("===================================\n");
     
-    const options = { topK, source, minArea, maxArea, xfCommunities };
+    const options = { topK, source, minArea, maxArea, xfCommunities, giftArea };
     POOL.runTask({ target: effectiveTarget, options })
       .then((results) => sendJson(res, results))
       .catch((e) => sendJson(res, { error: (e && e.message) ? e.message : String(e) }, 500));
@@ -247,7 +247,7 @@ function handleExcel(urlObj, res) {
     }
     console.log("=========================================\n");
     
-    const options = { topK, source, minArea, maxArea, xfCommunities };
+    const options = { topK, source, minArea, maxArea, xfCommunities, giftArea };
     POOL.runTask({ target: effectiveTarget, options })
       .then((results) => {
         try {

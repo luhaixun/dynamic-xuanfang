@@ -9,6 +9,6 @@
   "policy": {
     "disallowDominantWithSmallOthers": true,
     "dominantMoreThan": 135,
-    "othersLessThan": 70
+    "othersLessThan": 60
   }
 }
