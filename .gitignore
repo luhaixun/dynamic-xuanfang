@@ -10,3 +10,4 @@ env
 output.xlsx
 .DS_Store
 data/*.json
+.vercel
