@@ -339,8 +339,17 @@ function bestTopKCombos(candidates, target, fileAName, fileBName, topK = 10, dis
     }
   }
 
+  // 过滤掉浪费面积大于等于赠送面积的方案（仅当启用赠送面积时）
+  const filteredList = giftArea > 0 
+    ? topList.filter(({ sum }) => {
+        const sumFixed = Number(sum.toFixed(6));
+        const wasteArea = Number((targetNum - sumFixed).toFixed(6));
+        return wasteArea < giftArea;
+      })
+    : topList;
+
   // 输出格式化
-  return topList.map(({ sum, picked }) => {
+  return filteredList.map(({ sum, picked }) => {
     const sumFixed = Number(sum.toFixed(6));
     return {
       result: picked.map((x) => {
