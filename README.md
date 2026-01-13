@@ -18,6 +18,8 @@
 - 后端硬约束：不允许出现“两套‘大’（面积 > 100）且均来自期房（A）”的组合
 - 返回最优的前 K 条结果（K 可配置）
 
+- 在启用赠送面积（赠送面积策略）时，组合中必须至少包含一套 D 类房源（即如果允许赠送面积，则结果中必须出现 `D` 类）。
+
 策略（可在 config.json 启用）：
 - disallowDominantWithSmallOthers：不允许“恰好 1 条面积 > dominantMoreThan，且其余所有条目面积 < othersLessThan”的组合（默认阈值示例：dominantMoreThan=100，othersLessThan=70）
 
