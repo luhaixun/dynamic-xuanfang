@@ -11,17 +11,19 @@
 ## 核心规则
 
 - 结果条数只能是 3 套或 4 套
-- 户型必须覆盖 A / B / C（各至少 1 套）
-- 4 套时，只允许某一类重复一次（如 A×2、B×1、C×1）
+- 未启用赠送面积：户型必须覆盖 A / B / C（各至少 1 套）
+- 启用赠送面积（通过查询/参数 `giftArea` > 0）：求解器在候选类型中以 `D`（赠送类）替代 `C` 作为第三位候选，组合要求至少包含 `A` 与 `B` 且至少存在 `D` 可选条目；同时会在最终结果中过滤掉浪费面积（目标 - 兑换面积）大于等于赠送面积的方案（只保留浪费面积 < `giftArea`）。
+- 4 套时，只允许某一类重复一次（如 A×2、B×1、C×1 或在启用赠送时允许 A×2+B+D 等形式——重复一类且其余两类各 1 套）
 - 总面积 ≤ target，且尽量接近 target
 - 至少 1 套必须来自“现房”数据源（B）
 - 后端硬约束：不允许出现“两套‘大’（面积 > 100）且均来自期房（A）”的组合
 - 返回最优的前 K 条结果（K 可配置）
 
-- 在启用赠送面积（赠送面积策略）时，组合中必须至少包含一套 D 类房源（即如果允许赠送面积，则结果中必须出现 `D` 类）。
 
-策略（可在 config.json 启用）：
-- disallowDominantWithSmallOthers：不允许“恰好 1 条面积 > dominantMoreThan，且其余所有条目面积 < othersLessThan”的组合（默认阈值示例：dominantMoreThan=100，othersLessThan=70）
+策略（可在 `config.json` 启用）：
+- `disallowDominantWithSmallOthers`：不允许“恰好 1 条面积 > `dominantMoreThan`，且其余所有条目面积 < `othersLessThan`”的组合。当前仓库 `config.json` 中的默认阈值为 `dominantMoreThan=135`、`othersLessThan=60`。
+
+说明：启用赠送面积时，请通过查询参数或调用 `solveTopK` 时传入 `giftArea`（数值）来指定赠送面积阈值；当 `giftArea > 0` 时，求解器会把候选集合中的类型选择为 `A`/`B`/`D`（而非 `A`/`B`/`C`），并在返回结果前排除浪费面积 ≥ `giftArea` 的组合。
 
 ---
 
@@ -71,15 +73,17 @@ project/
 - 配置文件：根目录下的 config.json，包含默认值：
   ```json
   {
-    "topK": 10,
+    "topK": 30000,
     "source": "AB",
+    "fileAPath": "./data/期房-汇总.json",
+    "fileBPath": "./data/现房-汇总.json",
     "excel": "./output.xlsx",
-    "minArea": 60,
-    "maxArea": 125.76,
+    "minArea": 50,
+    "targetPresets": [318.64, 312.64],
     "policy": {
       "disallowDominantWithSmallOthers": true,
-      "dominantMoreThan": 100,
-      "othersLessThan": 70
+      "dominantMoreThan": 135,
+      "othersLessThan": 60
     }
   }
   ```
