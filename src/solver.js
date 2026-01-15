@@ -63,6 +63,9 @@ function readJsonRowsCached(filePath) {
   function extractAreaTypeRows(rows, typeKey) {
     const out = [];
     for (const r of rows || []) {
+      // Skip excluded records
+      if (r.excluded === true) continue;
+      
       const area = Number(r["建筑面积"]);
       const type = normalizeType(r[typeKey]);
       if (!Number.isFinite(area) || area <= 0) continue;
@@ -77,6 +80,9 @@ function readJsonRowsCached(filePath) {
   function extractAreaTypeRowsWithCommunity(rows, typeKey, communityKey) {
     const out = [];
     for (const r of rows || []) {
+      // Skip excluded records
+      if (r.excluded === true) continue;
+      
       const area = Number(r["建筑面积"]);
       const type = normalizeType(r[typeKey]);
       if (!Number.isFinite(area) || area <= 0) continue;
@@ -430,6 +436,9 @@ function solveTopK(
   function toAreaTypeRows(rows, typeKey) {
     const out = [];
     for (const r of rows) {
+      // Skip excluded records
+      if (r.excluded === true) continue;
+      
       const area = Number(r["建筑面积"]);
       const type = normalizeType(r[typeKey]);
       if (!Number.isFinite(area) || area <= 0) continue;

@@ -68,8 +68,12 @@ function validateColumns(rows, requiredCols, label) {
 }
 
 /** 模块初始化时一次性加载（服务/CLI 启动即加载） */
-// 支持 --refresh 标志：若传入则跳过 JSON 缓存，强制重新从 Excel 解析并覆盖 JSON
-const REFRESH = Array.isArray(process.argv) && process.argv.includes("--refresh");
+// 支持 --refresh 或 --refresh-data 标志：若传入则跳过 JSON 缓存，强制重新从 Excel 解析并覆盖 JSON
+const REFRESH = Array.isArray(process.argv) && (process.argv.includes("--refresh") || process.argv.includes("--refresh-data"));
+
+if (REFRESH) {
+  console.log("[LOG] 使用 --refresh-data 标志启动，将从 Excel 重新加载数据并重置所有排除标记");
+}
 
 /**
  * 将数组写入 JSON 文件
@@ -92,6 +96,22 @@ function loadJson(filePath) {
 }
 
 /**
+ * 更新 JSON 文件中指定记录的 excluded 状态
+ * @param {string} filePath
+ * @param {number} index
+ * @param {boolean} excluded
+ */
+function updateExclusionStatus(filePath, index, excluded) {
+  const rows = loadJson(filePath);
+  if (index >= 0 && index < rows.length) {
+    rows[index].excluded = !!excluded;
+    saveJson(filePath, rows);
+    return true;
+  }
+  return false;
+}
+
+/**
  * 按需从缓存或 Excel 加载数据
  * @param {string} xlsxPath
  * @param {string} sheetName
@@ -104,6 +124,8 @@ function loadDataset(xlsxPath, sheetName, jsonPath, typeCol) {
   if (needBuild) {
     rows = readSheet(xlsxPath, sheetName);
     validateColumns(rows, ["建筑面积", typeCol], `${path.basename(xlsxPath)} -> ${sheetName}`);
+    // 刷新时，重置所有 excluded 标志为 false
+    rows.forEach(row => { row.excluded = false; });
     // 首次/刷新时，刷新缓存
     try {
       saveJson(jsonPath, rows);
@@ -115,6 +137,10 @@ function loadDataset(xlsxPath, sheetName, jsonPath, typeCol) {
     rows = loadJson(jsonPath);
     // 基本校验（缓存文件）
     validateColumns(rows, ["建筑面积", typeCol], `${path.basename(jsonPath)} (缓存)`);
+    // 确保所有行都有 excluded 字段（向后兼容）
+    rows.forEach(row => {
+      if (row.excluded === undefined) row.excluded = false;
+    });
   }
   return rows;
 }
@@ -127,4 +153,9 @@ module.exports = {
   FILE_B_NAME,
   qifangRows,
   xianfangRows,
+  QIFANG_JSON,
+  XIANFANG_JSON,
+  updateExclusionStatus,
+  loadJson,
+  saveJson,
 };

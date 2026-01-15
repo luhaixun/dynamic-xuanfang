@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <title>房源管理 - 选房程序</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --panel: #111827;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --accent: #22c55e;
+      --accent-2: #60a5fa;
+      --danger: #ef4444;
+      --card: #1f2937;
+      --input: #111827;
+      --border: #1f2937;
+      --hover: #374151;
+    }
+
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --muted: #64748b;
+      --text: #0f172a;
+      --accent: #16a34a;
+      --accent-2: #2563eb;
+      --danger: #b91c1c;
+      --card: #ffffff;
+      --input: #ffffff;
+      --border: #e5e7eb;
+      --hover: #f3f4f6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      color: #fff;
+      background-image: radial-gradient(100% 100% at 100% 0, #4f46e5 0, #2563eb 100%);
+      cursor: pointer;
+      transition: transform .03s ease, box-shadow .15s ease;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .btn.success {
+      background-image: radial-gradient(100% 100% at 100% 0, #22c55e 0, #16a34a 100%);
+    }
+
+    .btn.danger {
+      background-image: radial-gradient(100% 100% at 100% 0, #ef4444 0, #dc2626 100%);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .stat {
+      background: var(--input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .search-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+      align-items: stretch;
+    }
+
+    .search-bar .btn {
+      grid-column: span 1;
+    }
+
+    @media (max-width: 1200px) {
+      .search-bar {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .search-bar {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .search-bar {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .search-bar input,
+    .search-bar select {
+      flex: 1;
+      min-width: 150px;
+      background: var(--input);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      outline: none;
+      font-size: 14px;
+    }
+
+    .search-bar input:focus,
+    .search-bar select:focus {
+      border-color: var(--accent-2);
+    }
+
+    /* Dropdown with checkbox list */
+    .dropdown {
+      position: relative;
+    }
+
+    .dropdown-btn {
+      width: 100%;
+      background: var(--input);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: left;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 13px;
+      min-height: 42px;
+    }
+
+    .dropdown-btn:focus {
+      border-color: var(--accent-2);
+      outline: none;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 6px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      z-index: 1000;
+      max-height: 300px;
+      overflow: auto;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      display: none;
+    }
+
+    .dropdown-menu.show {
+      display: block;
+    }
+
+    .dropdown-menu .filter-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-bottom: 8px;
+    }
+
+    .dropdown-menu .filter-actions .btn {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .filter-option {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 6px 8px;
+      cursor: pointer;
+    }
+
+    .filter-option:hover {
+      background: var(--hover);
+      border-radius: 4px;
+    }
+
+    .filter-option input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      margin: 0 8px 0 0;
+      flex-shrink: 0;
+    }
+
+    .filter-option label {
+      cursor: pointer;
+      font-size: 13px;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      flex: 1;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: var(--card);
+      z-index: 10;
+    }
+
+    thead th {
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 2px solid var(--border);
+      padding: 12px 8px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    tbody td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 8px;
+    }
+
+    tbody tr:hover {
+      background: var(--hover);
+    }
+
+    tbody tr.excluded {
+      opacity: 0.5;
+      text-decoration: line-through;
+    }
+
+    .checkbox {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      z-index: 1000;
+      display: none;
+      max-width: 400px;
+    }
+
+    .notification.success {
+      border-color: var(--accent);
+    }
+
+    .notification.error {
+      border-color: var(--danger);
+    }
+
+    .notification.show {
+      display: block;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .loading {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .loading.show {
+      display: flex;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .pagination-info {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .pagination-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .items-per-page {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .items-per-page select {
+      background: var(--input);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      outline: none;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .items-per-page select:focus {
+      border-color: var(--accent-2);
+    }
+
+    .page-btn {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--input);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .page-btn:hover:not(:disabled) {
+      background: var(--hover);
+    }
+
+    .page-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .page-btn.active {
+      background: var(--accent-2);
+      color: white;
+      border-color: var(--accent-2);
+    }
+
+    .warning-box {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--danger);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .warning-box h3 {
+      margin: 0 0 8px;
+      color: var(--danger);
+      font-size: 16px;
+    }
+
+    .warning-box p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .tab {
+      padding: 12px 20px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+    }
+
+    .tab.active {
+      color: var(--accent-2);
+      border-bottom-color: var(--accent-2);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>数据管理</h1>
+        <p class="muted">管理期房和现房数据，标记需要排除的记录</p>
+      </div>
+      <div class="actions">
+        <a href="/" class="btn">返回主页</a>
+        <button id="themeToggle" class="btn">切换主题</button>
+        <button id="saveBtn" class="btn success" disabled>保存更改</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="stats" id="stats"></div>
+      
+      <div class="warning-box">
+        <h3>⚠️ 重要说明</h3>
+        <p>
+          • 勾选"排除"复选框会将该记录标记为排除状态，在计算组合时将不会使用该记录<br>
+          • 点击"保存更改"后，更改将立即生效，无需重启服务器<br>
+          • 使用 <code>--refresh</code> 或 <code>--refresh-data</code> 标志启动服务器将从原始Excel文件重新加载数据，所有排除标记将被清除
+        </p>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="qifang">期房数据</button>
+        <button class="tab" data-tab="xianfang">现房数据</button>
+      </div>
+
+      <div id="qifang" class="tab-content active">
+        <div class="search-bar">
+          <div class="dropdown" id="qfHouseDropdown">
+            <button type="button" class="dropdown-btn" id="qfHouseDropdownBtn">门牌号：不限</button>
+            <div class="dropdown-menu" id="qfHouseDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="qfHouseSelectAll">全选</button>
+                <button type="button" class="btn success" id="qfHouseClearAll">清空</button>
+              </div>
+              <div id="qfHouseOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="qfRoomDropdown">
+            <button type="button" class="dropdown-btn" id="qfRoomDropdownBtn">室号：不限</button>
+            <div class="dropdown-menu" id="qfRoomDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="qfRoomSelectAll">全选</button>
+                <button type="button" class="btn success" id="qfRoomClearAll">清空</button>
+              </div>
+              <div id="qfRoomOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="qfFloorDropdown">
+            <button type="button" class="dropdown-btn" id="qfFloorDropdownBtn">楼层：不限</button>
+            <div class="dropdown-menu" id="qfFloorDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="qfFloorSelectAll">全选</button>
+                <button type="button" class="btn success" id="qfFloorClearAll">清空</button>
+              </div>
+              <div id="qfFloorOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="qfTypeDropdown">
+            <button type="button" class="dropdown-btn" id="qfTypeDropdownBtn">户型：不限</button>
+            <div class="dropdown-menu" id="qfTypeDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="qfTypeSelectAll">全选</button>
+                <button type="button" class="btn success" id="qfTypeClearAll">清空</button>
+              </div>
+              <div id="qfTypeOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="qfAreaDropdown">
+            <button type="button" class="dropdown-btn" id="qfAreaDropdownBtn">建筑面积：不限</button>
+            <div class="dropdown-menu" id="qfAreaDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="qfAreaSelectAll">全选</button>
+                <button type="button" class="btn success" id="qfAreaClearAll">清空</button>
+              </div>
+              <div id="qfAreaOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="qfStatusDropdown">
+            <button type="button" class="dropdown-btn" id="qfStatusDropdownBtn">选房状态：不限</button>
+            <div class="dropdown-menu" id="qfStatusDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="qfStatusSelectAll">全选</button>
+                <button type="button" class="btn success" id="qfStatusClearAll">清空</button>
+              </div>
+              <div id="qfStatusOptions"></div>
+            </div>
+          </div>
+          <button class="btn" id="qfClearFilters">清除筛选</button>
+          <button class="btn" id="qfSelectAll">全选当前页</button>
+          <button class="btn" id="qfDeselectAll">取消全选</button>
+        </div>
+        <div class="pagination">
+          <div class="pagination-info" id="qfPageInfo"></div>
+          <div class="pagination-controls">
+            <div class="items-per-page">
+              <label>每页显示：</label>
+              <select id="qfItemsPerPage">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="200">200</option>
+                <option value="500">500</option>
+              </select>
+            </div>
+            <div id="qfPagination"></div>
+          </div>
+        </div>
+        <div class="table-container">
+          <table id="qfTable">
+            <thead id="qfTableHead"></thead>
+            <tbody id="qfTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="xianfang" class="tab-content">
+        <div class="search-bar">
+          <div class="dropdown" id="xfCommunityDropdown">
+            <button type="button" class="dropdown-btn" id="xfCommunityDropdownBtn">小区名称：不限</button>
+            <div class="dropdown-menu" id="xfCommunityDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="xfCommunitySelectAll">全选</button>
+                <button type="button" class="btn success" id="xfCommunityClearAll">清空</button>
+              </div>
+              <div id="xfCommunityOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="xfCategoryDropdown">
+            <button type="button" class="dropdown-btn" id="xfCategoryDropdownBtn">类型：不限</button>
+            <div class="dropdown-menu" id="xfCategoryDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="xfCategorySelectAll">全选</button>
+                <button type="button" class="btn success" id="xfCategoryClearAll">清空</button>
+              </div>
+              <div id="xfCategoryOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="xfHouseDropdown">
+            <button type="button" class="dropdown-btn" id="xfHouseDropdownBtn">门牌号：不限</button>
+            <div class="dropdown-menu" id="xfHouseDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="xfHouseSelectAll">全选</button>
+                <button type="button" class="btn success" id="xfHouseClearAll">清空</button>
+              </div>
+              <div id="xfHouseOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="xfRoomDropdown">
+            <button type="button" class="dropdown-btn" id="xfRoomDropdownBtn">室号：不限</button>
+            <div class="dropdown-menu" id="xfRoomDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="xfRoomSelectAll">全选</button>
+                <button type="button" class="btn success" id="xfRoomClearAll">清空</button>
+              </div>
+              <div id="xfRoomOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="xfFloorDropdown">
+            <button type="button" class="dropdown-btn" id="xfFloorDropdownBtn">楼层：不限</button>
+            <div class="dropdown-menu" id="xfFloorDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="xfFloorSelectAll">全选</button>
+                <button type="button" class="btn success" id="xfFloorClearAll">清空</button>
+              </div>
+              <div id="xfFloorOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="xfTypeDropdown">
+            <button type="button" class="dropdown-btn" id="xfTypeDropdownBtn">户型：不限</button>
+            <div class="dropdown-menu" id="xfTypeDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="xfTypeSelectAll">全选</button>
+                <button type="button" class="btn success" id="xfTypeClearAll">清空</button>
+              </div>
+              <div id="xfTypeOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="xfAreaDropdown">
+            <button type="button" class="dropdown-btn" id="xfAreaDropdownBtn">建筑面积：不限</button>
+            <div class="dropdown-menu" id="xfAreaDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="xfAreaSelectAll">全选</button>
+                <button type="button" class="btn success" id="xfAreaClearAll">清空</button>
+              </div>
+              <div id="xfAreaOptions"></div>
+            </div>
+          </div>
+          <div class="dropdown" id="xfStatusDropdown">
+            <button type="button" class="dropdown-btn" id="xfStatusDropdownBtn">选房状态：不限</button>
+            <div class="dropdown-menu" id="xfStatusDropdownMenu">
+              <div class="filter-actions">
+                <button type="button" class="btn" id="xfStatusSelectAll">全选</button>
+                <button type="button" class="btn success" id="xfStatusClearAll">清空</button>
+              </div>
+              <div id="xfStatusOptions"></div>
+            </div>
+          </div>
+          <button class="btn" id="xfClearFilters">清除筛选</button>
+          <button class="btn" id="xfSelectAll">全选当前页</button>
+          <button class="btn" id="xfDeselectAll">取消全选</button>
+        </div>
+        <div class="pagination">
+          <div class="pagination-info" id="xfPageInfo"></div>
+          <div class="pagination-controls">
+            <div class="items-per-page">
+              <label>每页显示：</label>
+              <select id="xfItemsPerPage">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="200">200</option>
+                <option value="500">500</option>
+              </select>
+            </div>
+            <div id="xfPagination"></div>
+          </div>
+        </div>
+        <div class="table-container">
+          <table id="xfTable">
+            <thead id="xfTableHead"></thead>
+            <tbody id="xfTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notification" id="notification"></div>
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+  </div>
+
+  <script>
+    let qifangData = [];
+    let xianfangData = [];
+    let qifangFiltered = [];
+    let xianfangFiltered = [];
+    let changes = new Map();
+    let currentTab = 'qifang';
+    
+    let qfItemsPerPage = 100;
+    let xfItemsPerPage = 100;
+    let qfCurrentPage = 1;
+    let xfCurrentPage = 1;
+
+    // Theme toggle
+    const themeToggle = document.getElementById('themeToggle');
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeButton();
+
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      updateThemeButton();
+    });
+
+    function updateThemeButton() {
+      const theme = document.documentElement.getAttribute('data-theme');
+      themeToggle.textContent = theme === 'dark' ? '☀️ 白天模式' : '🌙 夜间模式';
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.dataset.tab;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tabName).classList.add('active');
+        currentTab = tabName;
+      });
+    });
+
+    // Dropdown functionality
+    function setupDropdown(dropdownId, btnId, menuId, selectAllId, clearAllId, optionsId, applyCallback) {
+      const dropdown = document.getElementById(dropdownId);
+      const btn = document.getElementById(btnId);
+      const menu = document.getElementById(menuId);
+      const selectAll = document.getElementById(selectAllId);
+      const clearAll = document.getElementById(clearAllId);
+      const optionsContainer = document.getElementById(optionsId);
+
+      if (!btn || !menu) return;
+
+      // Toggle menu
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wasOpen = menu.classList.contains('show');
+        // Close all other dropdowns
+        document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+        if (!wasOpen) {
+          menu.classList.add('show');
+        }
+      });
+
+      // Close on outside click
+      document.addEventListener('click', (e) => {
+        if (dropdown && !dropdown.contains(e.target)) {
+          menu.classList.remove('show');
+        }
+      });
+
+      // Select all
+      if (selectAll) {
+        selectAll.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const checkboxes = optionsContainer.querySelectorAll('input[type="checkbox"]');
+          checkboxes.forEach(cb => cb.checked = true);
+          updateDropdownLabel(btnId, optionsContainer);
+          if (applyCallback) applyCallback();
+        });
+      }
+
+      // Clear all
+      if (clearAll) {
+        clearAll.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const checkboxes = optionsContainer.querySelectorAll('input[type="checkbox"]');
+          checkboxes.forEach(cb => cb.checked = false);
+          updateDropdownLabel(btnId, optionsContainer);
+          if (applyCallback) applyCallback();
+        });
+      }
+
+      // Listen to checkbox changes
+      if (optionsContainer) {
+        optionsContainer.addEventListener('change', (e) => {
+          if (e.target.matches('input[type="checkbox"]')) {
+            updateDropdownLabel(btnId, optionsContainer);
+            if (applyCallback) applyCallback();
+          }
+        });
+      }
+    }
+
+    function updateDropdownLabel(btnId, optionsContainer) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      
+      const checkboxes = Array.from(optionsContainer.querySelectorAll('input[type="checkbox"]:checked'));
+      const prefix = btn.textContent.split('：')[0];
+      
+      if (checkboxes.length === 0) {
+        btn.textContent = prefix + '：不限';
+      } else {
+        btn.textContent = prefix + '：已选 ' + checkboxes.length + ' 项';
+      }
+    }
+
+    function getSelectedValues(optionsId) {
+      const container = document.getElementById(optionsId);
+      if (!container) return [];
+      return Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
+        .map(cb => cb.value);
+    }
+
+    // Load data
+    async function loadData() {
+      showLoading(true);
+      try {
+        const res = await fetch('/admin/data');
+        if (!res.ok) throw new Error('Failed to load data');
+        const data = await res.json();
+        
+        qifangData = data.qifang || [];
+        xianfangData = data.xianfang || [];
+        qifangFiltered = [...qifangData];
+        xianfangFiltered = [...xianfangData];
+        
+        updateStats(data.metadata);
+        populateFilterOptions();
+        renderTables();
+        
+        showNotification('数据加载成功', 'success');
+      } catch (e) {
+        showNotification('数据加载失败: ' + e.message, 'error');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function updateStats(metadata) {
+      const stats = document.getElementById('stats');
+      stats.innerHTML = `
+        <div class="stat">
+          <div class="stat-label">期房总数</div>
+          <div class="stat-value">${metadata.qifangCount}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">期房已排除</div>
+          <div class="stat-value" style="color: var(--danger)">${metadata.qifangExcluded}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">现房总数</div>
+          <div class="stat-value">${metadata.xianfangCount}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">现房已排除</div>
+          <div class="stat-value" style="color: var(--danger)">${metadata.xianfangExcluded}</div>
+        </div>
+      `;
+    }
+
+    function renderTables() {
+      renderTable('qf', qifangFiltered, qfCurrentPage);
+      renderTable('xf', xianfangFiltered, xfCurrentPage);
+    }
+
+    // Extract floor from room number (e.g., 1101 -> 11, 101 -> 1)
+    function getFloor(roomNumber) {
+      if (!roomNumber) return null;
+      const roomStr = String(roomNumber);
+      if (roomStr.length <= 2) return 1; // Single or double digit rooms are on floor 1
+      // For rooms like 1101, 2201, extract first digits as floor
+      return parseInt(roomStr.slice(0, -2));
+    }
+
+    function populateFilterOptions() {
+      // Populate 期房 filters
+      const qfHouses = new Set();
+      qifangData.forEach(row => {
+        if (row['门牌号']) qfHouses.add(Math.floor(Number(row['门牌号'])));
+      });
+      populateDropdownOptions('qfHouseOptions', Array.from(qfHouses).sort((a, b) => a - b));
+
+      const qfRooms = new Set();
+      qifangData.forEach(row => {
+        if (row['室号']) qfRooms.add(Math.floor(Number(row['室号'])));
+      });
+      populateDropdownOptions('qfRoomOptions', Array.from(qfRooms).sort((a, b) => a - b));
+
+      const qfFloors = new Set();
+      qifangData.forEach(row => {
+        const floor = getFloor(row['室号']);
+        if (floor !== null) qfFloors.add(floor);
+      });
+      populateDropdownOptions('qfFloorOptions', Array.from(qfFloors).sort((a, b) => a - b), v => v + '层');
+
+      const qfTypes = new Set();
+      qifangData.forEach(row => {
+        if (row['户型']) qfTypes.add(row['户型']);
+      });
+      populateDropdownOptions('qfTypeOptions', Array.from(qfTypes).sort());
+
+      const qfAreas = new Set();
+      qifangData.forEach(row => {
+        if (row['建筑面积']) qfAreas.add(parseFloat(row['建筑面积']));
+      });
+      populateDropdownOptions('qfAreaOptions', Array.from(qfAreas).sort((a, b) => a - b), v => v.toFixed(2));
+
+      populateDropdownOptions('qfStatusOptions', [
+        { value: '可选', label: '可选' },
+        { value: '不可选', label: '不可选' }
+      ]);
+
+      // Populate 现房 filters
+      const xfCommunities = new Set();
+      xianfangData.forEach(row => {
+        if (row['小区名称']) xfCommunities.add(String(row['小区名称']));
+      });
+      populateDropdownOptions('xfCommunityOptions', Array.from(xfCommunities).sort());
+
+      const xfCategories = new Set();
+      xianfangData.forEach(row => {
+        if (row['类型']) xfCategories.add(String(row['类型']));
+      });
+      populateDropdownOptions('xfCategoryOptions', Array.from(xfCategories).sort());
+
+      const xfHouses = new Set();
+      xianfangData.forEach(row => {
+        if (row['门牌号']) xfHouses.add(Math.floor(Number(row['门牌号'])));
+      });
+      populateDropdownOptions('xfHouseOptions', Array.from(xfHouses).sort((a, b) => a - b));
+
+      const xfRooms = new Set();
+      xianfangData.forEach(row => {
+        if (row['室号']) xfRooms.add(Math.floor(Number(row['室号'])));
+      });
+      populateDropdownOptions('xfRoomOptions', Array.from(xfRooms).sort((a, b) => a - b));
+
+      const xfFloors = new Set();
+      xianfangData.forEach(row => {
+        const floor = getFloor(row['室号']);
+        if (floor !== null) xfFloors.add(floor);
+      });
+      populateDropdownOptions('xfFloorOptions', Array.from(xfFloors).sort((a, b) => a - b), v => v + '层');
+
+      const xfTypes = new Set();
+      xianfangData.forEach(row => {
+        if (row['户型']) xfTypes.add(row['户型']);
+      });
+      populateDropdownOptions('xfTypeOptions', Array.from(xfTypes).sort());
+
+      const xfAreas = new Set();
+      xianfangData.forEach(row => {
+        if (row['建筑面积']) xfAreas.add(parseFloat(row['建筑面积']));
+      });
+      populateDropdownOptions('xfAreaOptions', Array.from(xfAreas).sort((a, b) => a - b), v => v.toFixed(2));
+
+      populateDropdownOptions('xfStatusOptions', [
+        { value: '可选', label: '可选' },
+        { value: '不可选', label: '不可选' }
+      ]);
+
+      // Setup all dropdowns
+      setupDropdown('qfHouseDropdown', 'qfHouseDropdownBtn', 'qfHouseDropdownMenu', 'qfHouseSelectAll', 'qfHouseClearAll', 'qfHouseOptions', () => applyFilters('qf'));
+      setupDropdown('qfRoomDropdown', 'qfRoomDropdownBtn', 'qfRoomDropdownMenu', 'qfRoomSelectAll', 'qfRoomClearAll', 'qfRoomOptions', () => applyFilters('qf'));
+      setupDropdown('qfFloorDropdown', 'qfFloorDropdownBtn', 'qfFloorDropdownMenu', 'qfFloorSelectAll', 'qfFloorClearAll', 'qfFloorOptions', () => applyFilters('qf'));
+      setupDropdown('qfTypeDropdown', 'qfTypeDropdownBtn', 'qfTypeDropdownMenu', 'qfTypeSelectAll', 'qfTypeClearAll', 'qfTypeOptions', () => applyFilters('qf'));
+      setupDropdown('qfAreaDropdown', 'qfAreaDropdownBtn', 'qfAreaDropdownMenu', 'qfAreaSelectAll', 'qfAreaClearAll', 'qfAreaOptions', () => applyFilters('qf'));
+      setupDropdown('qfStatusDropdown', 'qfStatusDropdownBtn', 'qfStatusDropdownMenu', 'qfStatusSelectAll', 'qfStatusClearAll', 'qfStatusOptions', () => applyFilters('qf'));
+
+      setupDropdown('xfCommunityDropdown', 'xfCommunityDropdownBtn', 'xfCommunityDropdownMenu', 'xfCommunitySelectAll', 'xfCommunityClearAll', 'xfCommunityOptions', () => applyFilters('xf'));
+      setupDropdown('xfCategoryDropdown', 'xfCategoryDropdownBtn', 'xfCategoryDropdownMenu', 'xfCategorySelectAll', 'xfCategoryClearAll', 'xfCategoryOptions', () => applyFilters('xf'));
+      setupDropdown('xfHouseDropdown', 'xfHouseDropdownBtn', 'xfHouseDropdownMenu', 'xfHouseSelectAll', 'xfHouseClearAll', 'xfHouseOptions', () => applyFilters('xf'));
+      setupDropdown('xfRoomDropdown', 'xfRoomDropdownBtn', 'xfRoomDropdownMenu', 'xfRoomSelectAll', 'xfRoomClearAll', 'xfRoomOptions', () => applyFilters('xf'));
+      setupDropdown('xfFloorDropdown', 'xfFloorDropdownBtn', 'xfFloorDropdownMenu', 'xfFloorSelectAll', 'xfFloorClearAll', 'xfFloorOptions', () => applyFilters('xf'));
+      setupDropdown('xfTypeDropdown', 'xfTypeDropdownBtn', 'xfTypeDropdownMenu', 'xfTypeSelectAll', 'xfTypeClearAll', 'xfTypeOptions', () => applyFilters('xf'));
+      setupDropdown('xfAreaDropdown', 'xfAreaDropdownBtn', 'xfAreaDropdownMenu', 'xfAreaSelectAll', 'xfAreaClearAll', 'xfAreaOptions', () => applyFilters('xf'));
+      setupDropdown('xfStatusDropdown', 'xfStatusDropdownBtn', 'xfStatusDropdownMenu', 'xfStatusSelectAll', 'xfStatusClearAll', 'xfStatusOptions', () => applyFilters('xf'));
+
+      // Setup items per page change handlers
+      document.getElementById('qfItemsPerPage').addEventListener('change', (e) => {
+        qfItemsPerPage = parseInt(e.target.value);
+        qfCurrentPage = 1;
+        renderTable('qf', qifangFiltered, qfCurrentPage);
+      });
+
+      document.getElementById('xfItemsPerPage').addEventListener('change', (e) => {
+        xfItemsPerPage = parseInt(e.target.value);
+        xfCurrentPage = 1;
+        renderTable('xf', xianfangFiltered, xfCurrentPage);
+      });
+    }
+
+    function populateDropdownOptions(containerId, items, labelFormatter) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      
+      container.innerHTML = '';
+      items.forEach((item, idx) => {
+        const value = typeof item === 'object' ? item.value : String(item);
+        const label = typeof item === 'object' ? item.label : (labelFormatter ? labelFormatter(item) : String(item));
+        
+        const div = document.createElement('div');
+        div.className = 'filter-option';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = containerId + '_' + idx;
+        checkbox.value = value;
+        
+        const labelEl = document.createElement('label');
+        labelEl.setAttribute('for', checkbox.id);
+        labelEl.textContent = label;
+        
+        div.appendChild(checkbox);
+        div.appendChild(labelEl);
+        container.appendChild(div);
+      });
+    }
+
+    function renderTable(source, data, page) {
+      if (data.length === 0) return;
+      
+      const prefix = source === 'qf' ? 'qf' : 'xf';
+      const tableHead = document.getElementById(prefix + 'TableHead');
+      const tableBody = document.getElementById(prefix + 'TableBody');
+      const itemsPerPage = source === 'qf' ? qfItemsPerPage : xfItemsPerPage;
+      
+      // Get columns
+      const columns = Object.keys(data[0]).filter(k => k !== 'excluded');
+      
+      // Render header
+      tableHead.innerHTML = `
+        <tr>
+          <th style="width: 80px;">排除</th>
+          ${columns.map(col => `<th>${col}</th>`).join('')}
+        </tr>
+      `;
+      
+      // Pagination
+      const totalPages = Math.ceil(data.length / itemsPerPage);
+      const start = (page - 1) * itemsPerPage;
+      const end = Math.min(start + itemsPerPage, data.length);
+      const pageData = data.slice(start, end);
+      
+      // Render body
+      tableBody.innerHTML = pageData.map((row, idx) => {
+        const globalIdx = start + idx;
+        const originalIdx = source === 'qf' 
+          ? qifangData.indexOf(row)
+          : xianfangData.indexOf(row);
+        const isExcluded = row.excluded === true;
+        const changeKey = `${source}-${originalIdx}`;
+        const hasChange = changes.has(changeKey);
+        const checkboxChecked = hasChange ? changes.get(changeKey) : isExcluded;
+        
+        return `
+          <tr class="${checkboxChecked ? 'excluded' : ''}">
+            <td>
+              <input type="checkbox" 
+                class="checkbox" 
+                data-source="${source}" 
+                data-index="${originalIdx}"
+                ${checkboxChecked ? 'checked' : ''} />
+            </td>
+            ${columns.map(col => `<td>${formatCell(row[col], col)}</td>`).join('')}
+          </tr>
+        `;
+      }).join('');
+      
+      // Update pagination info
+      const pageInfo = document.getElementById(prefix + 'PageInfo');
+      pageInfo.textContent = `显示 ${start + 1}-${end} / 共 ${data.length} 条`;
+      
+      // Render pagination controls
+      renderPagination(prefix, page, totalPages);
+      
+      // Add event listeners
+      tableBody.querySelectorAll('.checkbox').forEach(cb => {
+        cb.addEventListener('change', handleCheckboxChange);
+      });
+    }
+
+    function renderPagination(prefix, currentPage, totalPages) {
+      const container = document.getElementById(prefix + 'Pagination');
+      if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+      }
+      
+      let html = `
+        <button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">上一页</button>
+      `;
+      
+      // Show first, current-1, current, current+1, last
+      const pages = new Set([1]);
+      if (currentPage > 1) pages.add(currentPage - 1);
+      pages.add(currentPage);
+      if (currentPage < totalPages) pages.add(currentPage + 1);
+      pages.add(totalPages);
+      
+      const pageArray = Array.from(pages).sort((a, b) => a - b);
+      pageArray.forEach((p, i) => {
+        if (i > 0 && pageArray[i - 1] < p - 1) {
+          html += `<span class="page-btn" disabled>...</span>`;
+        }
+        html += `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+      });
+      
+      html += `
+        <button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">下一页</button>
+      `;
+      
+      container.innerHTML = html;
+      
+      container.querySelectorAll('.page-btn[data-page]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const page = parseInt(btn.dataset.page);
+          if (prefix === 'qf') {
+            qfCurrentPage = page;
+            renderTable('qf', qifangFiltered, page);
+          } else {
+            xfCurrentPage = page;
+            renderTable('xf', xianfangFiltered, page);
+          }
+        });
+      });
+    }
+
+    function formatCell(value, columnName) {
+      if (value === null || value === undefined) return '';
+      // Handle 选房状态 column specifically
+      if (columnName === '选房状态') {
+        // The value should already be "可选" or "不可选" from the JSON
+        return value;
+      }
+      // Convert other boolean/string values to Chinese
+      if (typeof value === 'string') {
+        const lowerValue = value.toLowerCase();
+        if (lowerValue === 'false') return '否';
+      }
+      if (typeof value === 'boolean') {
+        return value ? '是' : '否';
+      }
+      // Remove decimal places for 门牌号, 室号, 单价, 幢号, and 序号 columns
+      if (typeof value === 'number') {
+        if (columnName === '门牌号' || columnName === '室号' || columnName === '单价' || columnName === '幢号' || columnName === '序号') {
+          return Math.floor(value).toString();
+        }
+        return value.toFixed(2);
+      }
+      return String(value);
+    }
+
+    function handleCheckboxChange(e) {
+      const source = e.target.dataset.source;
+      const index = parseInt(e.target.dataset.index);
+      const checked = e.target.checked;
+      
+      const changeKey = `${source}-${index}`;
+      const originalData = source === 'qf' ? qifangData : xianfangData;
+      const originalValue = originalData[index].excluded === true;
+      
+      if (checked === originalValue) {
+        changes.delete(changeKey);
+      } else {
+        changes.set(changeKey, checked);
+      }
+      
+      document.getElementById('saveBtn').disabled = changes.size === 0;
+      
+      // Update row styling
+      const row = e.target.closest('tr');
+      if (checked) {
+        row.classList.add('excluded');
+      } else {
+        row.classList.remove('excluded');
+      }
+    }
+
+    // Filter functionality
+    function applyFilters(source) {
+      const prefix = source === 'qf' ? 'qf' : 'xf';
+      const data = source === 'qf' ? qifangData : xianfangData;
+      
+      const selectedCommunities = source === 'xf' ? getSelectedValues(prefix + 'CommunityOptions') : [];
+      const selectedCategories = source === 'xf' ? getSelectedValues(prefix + 'CategoryOptions') : [];
+      const selectedHouses = getSelectedValues(prefix + 'HouseOptions').map(v => parseInt(v));
+      const selectedRooms = getSelectedValues(prefix + 'RoomOptions').map(v => parseInt(v));
+      const selectedFloors = getSelectedValues(prefix + 'FloorOptions').map(v => parseInt(v));
+      const selectedTypes = getSelectedValues(prefix + 'TypeOptions');
+      const selectedAreas = getSelectedValues(prefix + 'AreaOptions').map(v => parseFloat(v));
+      const selectedStatuses = getSelectedValues(prefix + 'StatusOptions');
+      
+      let filtered = data.filter(row => {
+        // Filter by 小区名称 (only for 现房)
+        if (source === 'xf' && selectedCommunities.length > 0) {
+          if (!selectedCommunities.includes(String(row['小区名称']))) return false;
+        }
+        
+        // Filter by 类型 (only for 现房)
+        if (source === 'xf' && selectedCategories.length > 0) {
+          if (!selectedCategories.includes(String(row['类型']))) return false;
+        }
+        
+        // Filter by 门牌号
+        if (selectedHouses.length > 0) {
+          const house = Math.floor(Number(row['门牌号']));
+          if (!selectedHouses.includes(house)) return false;
+        }
+        
+        // Filter by 室号
+        if (selectedRooms.length > 0) {
+          const room = Math.floor(Number(row['室号']));
+          if (!selectedRooms.includes(room)) return false;
+        }
+        
+        // Filter by 楼层
+        if (selectedFloors.length > 0) {
+          const floor = getFloor(row['室号']);
+          if (!selectedFloors.includes(floor)) return false;
+        }
+        
+        // Filter by 户型
+        if (selectedTypes.length > 0 && row['户型']) {
+          if (!selectedTypes.includes(String(row['户型']))) return false;
+        }
+        
+        // Filter by 建筑面积
+        if (selectedAreas.length > 0 && row['建筑面积']) {
+          const area = parseFloat(row['建筑面积']);
+          const matchesArea = selectedAreas.some(filterArea => 
+            Math.abs(area - filterArea) < 0.01
+          );
+          if (!matchesArea) return false;
+        }
+        
+        // Filter by 选房状态
+        if (selectedStatuses.length > 0) {
+          // Get the 选房状态 value from the row
+          const status = row['选房状态'];
+          
+          // Check if the row matches any of the selected statuses
+          // selectedStatuses contains string values: '可选' or '不可选'
+          const matchesStatus = selectedStatuses.includes(String(status));
+          
+          if (!matchesStatus) return false;
+        }
+        
+        return true;
+      });
+      
+      if (source === 'qf') {
+        qifangFiltered = filtered;
+        qfCurrentPage = 1;
+        renderTable('qf', filtered, 1);
+      } else {
+        xianfangFiltered = filtered;
+        xfCurrentPage = 1;
+        renderTable('xf', filtered, 1);
+      }
+    }
+
+    // Clear filters
+    document.getElementById('qfClearFilters').addEventListener('click', () => {
+      ['qfHouseOptions', 'qfRoomOptions', 'qfFloorOptions', 'qfTypeOptions', 'qfAreaOptions', 'qfStatusOptions'].forEach(id => {
+        const checkboxes = document.querySelectorAll('#' + id + ' input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        const btnId = id.replace('Options', 'DropdownBtn');
+        updateDropdownLabel(btnId, document.getElementById(id));
+      });
+      applyFilters('qf');
+    });
+
+    document.getElementById('xfClearFilters').addEventListener('click', () => {
+      ['xfCommunityOptions', 'xfCategoryOptions', 'xfHouseOptions', 'xfRoomOptions', 'xfFloorOptions', 'xfTypeOptions', 'xfAreaOptions', 'xfStatusOptions'].forEach(id => {
+        const checkboxes = document.querySelectorAll('#' + id + ' input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        const btnId = id.replace('Options', 'DropdownBtn');
+        updateDropdownLabel(btnId, document.getElementById(id));
+      });
+      applyFilters('xf');
+    });
+
+    // Select/deselect all on current page
+    document.getElementById('qfSelectAll').addEventListener('click', () => selectAllOnPage('qf', true));
+    document.getElementById('qfDeselectAll').addEventListener('click', () => selectAllOnPage('qf', false));
+    document.getElementById('xfSelectAll').addEventListener('click', () => selectAllOnPage('xf', true));
+    document.getElementById('xfDeselectAll').addEventListener('click', () => selectAllOnPage('xf', false));
+
+    function selectAllOnPage(source, checked) {
+      const prefix = source === 'qf' ? 'qf' : 'xf';
+      const checkboxes = document.querySelectorAll(`#${prefix}TableBody .checkbox`);
+      checkboxes.forEach(cb => {
+        if (cb.checked !== checked) {
+          cb.checked = checked;
+          handleCheckboxChange({ target: cb });
+        }
+      });
+    }
+
+    // Save changes
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      if (changes.size === 0) return;
+      
+      const updates = [];
+      changes.forEach((excluded, key) => {
+        const [source, index] = key.split('-');
+        updates.push({
+          source,
+          index: parseInt(index),
+          excluded
+        });
+      });
+      
+      showLoading(true);
+      try {
+        const res = await fetch('/admin/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates)
+        });
+        
+        if (!res.ok) throw new Error('Failed to save changes');
+        const result = await res.json();
+        
+        changes.clear();
+        document.getElementById('saveBtn').disabled = true;
+        
+        showNotification('更改已保存，立即生效', 'success');
+        
+        // Reload data to reflect changes
+        await loadData();
+      } catch (e) {
+        showNotification('保存失败: ' + e.message, 'error');
+      } finally {
+        showLoading(false);
+      }
+    });
+
+    function showLoading(show) {
+      document.getElementById('loading').classList.toggle('show', show);
+    }
+
+    function showNotification(message, type = 'success') {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.className = `notification ${type} show`;
+      
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 3000);
+    }
+
+    // Initialize
+    loadData();
+  </script>
+</body>
+</html>

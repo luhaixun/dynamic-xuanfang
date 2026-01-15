@@ -12,7 +12,7 @@ const path = require("path");
 const { URL } = require("url");
 const { solveTopK } = require("./src/solver");
 const { exportToExcel } = require("./src/export");
-const { xianfangRows } = require("./src/data");
+const { xianfangRows, qifangRows, QIFANG_JSON, XIANFANG_JSON, updateExclusionStatus, loadJson, saveJson } = require("./src/data");
 const { Worker } = require("worker_threads");
 const os = require("os");
 
@@ -315,6 +315,82 @@ const server = http.createServer((req, res) => {
     return sendFile(res, indexPath, "text/html; charset=utf-8");
   }
 
+  if (req.method === "GET" && pathname === "/admin") {
+    const adminPath = path.join(PUBLIC_DIR, "admin.html");
+    return sendFile(res, adminPath, "text/html; charset=utf-8");
+  }
+
+  if (req.method === "GET" && pathname === "/admin/data") {
+    try {
+      const qifang = loadJson(QIFANG_JSON);
+      const xianfang = loadJson(XIANFANG_JSON);
+      return sendJson(res, {
+        qifang: qifang,
+        xianfang: xianfang,
+        metadata: {
+          qifangCount: qifang.length,
+          xianfangCount: xianfang.length,
+          qifangExcluded: qifang.filter(r => r.excluded === true).length,
+          xianfangExcluded: xianfang.filter(r => r.excluded === true).length,
+        }
+      });
+    } catch (e) {
+      return sendJson(res, { error: e.message }, 500);
+    }
+  }
+
+  if (req.method === "POST" && pathname === "/admin/data") {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const updates = JSON.parse(body);
+        if (!Array.isArray(updates)) {
+          return sendJson(res, { error: 'Invalid request: expected array of updates' }, 400);
+        }
+
+        const results = [];
+        for (const update of updates) {
+          const { source, index, excluded } = update;
+          if (!source || typeof index !== 'number' || typeof excluded !== 'boolean') {
+            results.push({ success: false, error: 'Invalid update format' });
+            continue;
+          }
+
+          const filePath = source === 'qf' ? QIFANG_JSON : 
+                          source === 'xf' ? XIANFANG_JSON : null;
+          
+          if (!filePath) {
+            results.push({ success: false, error: 'Invalid source' });
+            continue;
+          }
+
+          const success = updateExclusionStatus(filePath, index, excluded);
+          results.push({ success, index, source });
+        }
+
+        // Reload data in memory after updates
+        const qifang = loadJson(QIFANG_JSON);
+        const xianfang = loadJson(XIANFANG_JSON);
+        
+        // Update the in-memory arrays (we need to update the module exports)
+        Object.assign(qifangRows, qifang);
+        qifangRows.length = qifang.length;
+        Object.assign(xianfangRows, xianfang);
+        xianfangRows.length = xianfang.length;
+
+        return sendJson(res, { 
+          success: true, 
+          results,
+          message: 'Data updated successfully. Changes will take effect immediately.'
+        });
+      } catch (e) {
+        return sendJson(res, { error: e.message }, 500);
+      }
+    });
+    return;
+  }
+
   if (req.method === "GET" && pathname === "/config") {
     const cfg = readConfig();
     return sendJson(res, cfg);
@@ -393,6 +469,6 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log("上海市闵行区梅陇镇城中村 选房程序（内部版）");
+  console.log("上海市闵行区 选房程序（内部版）");
   console.log(`UI 服务已启动：http://localhost:${PORT}`);
 });
